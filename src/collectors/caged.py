@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from collectors import BaseCollector
+from src.collectors.base import BaseCollector
 
 BASE_URL = "https://portaldatransparencia.gov.br"
 CODIGO_JOINVILLE = 4209102
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class CagedCollector(BaseCollector):
     """
-    Responsável por coletar os dados do CAGED.
+    Responsável pela coleta dos dados do CAGED.
     """
 
     def __init__(self) -> None:
@@ -23,6 +23,7 @@ class CagedCollector(BaseCollector):
         )
 
         self.download_dir = Path("data") / "caged"
+
         self.download_dir.mkdir(
             parents=True,
             exist_ok=True,
@@ -35,6 +36,9 @@ class CagedCollector(BaseCollector):
     ) -> pd.DataFrame:
         """
         Coleta os dados do CAGED.
+
+        Retorna:
+            DataFrame contendo os dados brutos coletados.
         """
 
         if ano < ANO_INICIAL_CAGED:
@@ -43,13 +47,15 @@ class CagedCollector(BaseCollector):
         if not 1 <= mes <= 12:
             raise ValueError("O mês deve estar entre 1 e 12.")
 
+        competencia = f"{ano}{mes:02d}"
+
         logger.info(
-            "Coletando dados do CAGED - %02d/%d",
-            mes,
-            ano,
+            "Coletando dados do CAGED - competência %s.",
+            competencia,
         )
 
-        # Aqui ficará a lógica de download do CAGED.
+        # TODO:
+        # Implementar download dos arquivos oficiais do CAGED.
 
         return pd.DataFrame(
             columns=[
@@ -68,7 +74,7 @@ class CagedCollector(BaseCollector):
         codigo_municipio: int = CODIGO_JOINVILLE,
     ) -> pd.DataFrame:
         """
-        Lê um arquivo local e retorna os dados do município informado.
+        Processa um arquivo local e filtra os dados do município informado.
         """
 
         logger.info(
@@ -86,11 +92,10 @@ class CagedCollector(BaseCollector):
         if "municipio" not in df.columns:
             raise ValueError("A coluna 'municipio' não foi encontrada no arquivo.")
 
-        if not df.empty:
-            df = df[df["municipio"] == codigo_municipio]
+        df = df[df["municipio"] == codigo_municipio]
 
         logger.info(
-            "Foram encontrados %d registros para o município %d.",
+            "Encontrados %d registros para o município %d.",
             len(df),
             codigo_municipio,
         )

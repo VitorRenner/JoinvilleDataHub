@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -5,6 +6,8 @@ from typing import Any
 import pandas as pd
 import requests
 from pandas.errors import ParserError
+
+logger = logging.getLogger(__name__)
 
 
 class BaseCollector(ABC):
@@ -23,6 +26,7 @@ class BaseCollector(ABC):
         """
         Inicializa o coletor.
         """
+
         self.base_url = base_url
         self.session = session or requests.Session()
 
@@ -32,8 +36,11 @@ class BaseCollector(ABC):
         **kwargs: Any,
     ) -> Any:
         """
-        Método que deve ser implementado pelos coletores.
+        Executa a coleta dos dados.
+
+        Deve ser implementado pelos coletores específicos.
         """
+
         raise NotImplementedError
 
     def download_file(
@@ -42,22 +49,41 @@ class BaseCollector(ABC):
         caminho_arquivo: str,
     ) -> bool:
         """
-        Faz o download de um arquivo.
+        Realiza o download de um arquivo.
         """
+
+        caminho = Path(caminho_arquivo)
+
+        caminho.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        logger.info(
+            "Iniciando download: %s",
+            url,
+        )
+
         try:
             response = self.session.get(
                 url,
                 stream=True,
                 timeout=self.REQUEST_TIMEOUT_SECONDS,
             )
+
             response.raise_for_status()
 
-            with Path(caminho_arquivo).open("wb") as arquivo:
+            with caminho.open("wb") as arquivo:
                 for chunk in response.iter_content(
                     chunk_size=self.DOWNLOAD_CHUNK_SIZE,
                 ):
                     if chunk:
                         arquivo.write(chunk)
+
+            logger.info(
+                "Arquivo salvo em: %s",
+                caminho,
+            )
 
             return True
 
@@ -70,13 +96,21 @@ class BaseCollector(ABC):
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
-        Lê um arquivo Excel.
+        Lê um arquivo Excel e retorna um DataFrame.
         """
+
         try:
-            return pd.read_excel(
+            dataframe = pd.read_excel(
                 caminho_arquivo,
                 **kwargs,
             )
+
+            logger.info(
+                "Arquivo Excel carregado: %s",
+                caminho_arquivo,
+            )
+
+            return dataframe
 
         except (
             FileNotFoundError,
@@ -84,4 +118,4 @@ class BaseCollector(ABC):
             ValueError,
             ParserError,
         ) as erro:
-            raise RuntimeError(f"Erro ao ler o arquivo Excel: {erro}") from erro
+            raise RuntimeError(f"Erro ao ler arquivo Excel: {erro}") from erro

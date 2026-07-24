@@ -27,13 +27,16 @@ dev = [
     "ruff",
 ]
 
+
 [tool.black]
 line-length = 88
 target-version = ["py314"]
 
+
 [tool.ruff]
 line-length = 88
 target-version = "py314"
+
 
 [tool.ruff.lint]
 select = [
@@ -47,6 +50,13 @@ select = [
 ignore = [
     "B008",
 ]
+
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "src",
+]
+
 
 [tool.mypy]
 python_version = "3.14"

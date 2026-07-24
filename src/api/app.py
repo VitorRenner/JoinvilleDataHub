@@ -12,12 +12,15 @@ API_VERSION = "1.0.0"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     """
-    Executa ações na inicialização e no encerramento da aplicação.
+    Executa ações durante inicialização e encerramento da aplicação.
     """
+
     iniciar_scheduler()
+
     yield
+
     parar_scheduler()
 
 
@@ -33,7 +36,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://seudominio.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -54,11 +56,15 @@ app.include_router(
 )
 
 
-@app.get("/", summary="Informações da API")
+@app.get(
+    "/",
+    summary="Informações da API",
+)
 def root() -> dict:
     """
     Retorna informações básicas da API.
     """
+
     return {
         "name": API_TITLE,
         "version": API_VERSION,
@@ -70,14 +76,18 @@ def root() -> dict:
     }
 
 
-@app.get("/health", summary="Status da aplicação")
+@app.get(
+    "/health",
+    summary="Status da aplicação",
+)
 def health_check() -> dict:
     """
-    Verifica se a aplicação está em execução.
+    Verifica se a aplicação está disponível.
     """
+
     return {
         "status": "healthy",
         "application": API_TITLE,
         "version": API_VERSION,
-        "scheduler": "running",
+        "scheduler": "enabled",
     }

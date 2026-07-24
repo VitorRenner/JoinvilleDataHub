@@ -8,6 +8,7 @@ def status_ibge() -> dict:
     """
     Retorna informações sobre os endpoints do IBGE.
     """
+
     return {
         "message": "Endpoints do IBGE.",
         "status": "Em desenvolvimento.",
@@ -19,6 +20,7 @@ def listar_municipios() -> dict:
     """
     Lista os municípios disponíveis.
     """
+
     return {
         "municipios": [
             {

@@ -1,12 +1,7 @@
-from typing import Any
+from datetime import datetime
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Integer,
-    String,
-    UniqueConstraint,
-)
+from sqlalchemy import DateTime, Integer, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from src.database.conexao import Base
@@ -27,56 +22,56 @@ class CagedMovimentacao(Base):
         ),
     )
 
-    id = Column(
+    id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
         index=True,
     )
 
-    competencia = Column(
+    competencia: Mapped[str] = mapped_column(
         String(6),
         nullable=False,
         index=True,
     )
 
-    setor = Column(
+    setor: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
         index=True,
     )
 
-    admissoes = Column(
+    admissoes: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
     )
 
-    demissoes = Column(
+    demissoes: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
     )
 
-    saldo = Column(
+    saldo: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
     )
 
-    criado_em = Column(
+    criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
 
-    atualizado_em = Column(
+    atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, str | int | None]:
         """
         Converte o modelo para um dicionário.
         """
@@ -96,8 +91,9 @@ class CagedMovimentacao(Base):
 
     def __repr__(self) -> str:
         return (
-            f"CagedMovimentacao("
+            "CagedMovimentacao("
             f"id={self.id}, "
             f"competencia='{self.competencia}', "
-            f"setor='{self.setor}')"
+            f"setor='{self.setor}'"
+            ")"
         )

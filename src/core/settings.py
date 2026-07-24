@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     Configurações globais da aplicação.
     """
 
+    ENVIRONMENT: str = "development"
+
     API_TITLE: str = "CAGED API - Joinville"
     API_VERSION: str = "1.0.0"
     API_DESCRIPTION: str = "API para dados do CAGED e IBGE."

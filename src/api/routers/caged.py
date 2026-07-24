@@ -48,7 +48,7 @@ def listar_caged(
     Lista registros do CAGED.
     """
 
-    registros = repositorio.buscar_caged(
+    return repositorio.buscar_caged(
         db,
         competencia,
         setor,
@@ -56,14 +56,27 @@ def listar_caged(
         limit,
     )
 
-    return registros
+
+@router.get(
+    "/stats/resumo",
+)
+def estatisticas(
+    db: Session = Depends(get_db),
+):
+    """
+    Retorna estatísticas básicas do CAGED.
+    """
+
+    return {
+        "total_registros": repositorio.contar_registros(db),
+    }
 
 
 @router.get(
     "/{registro_id}",
     response_model=CagedResponse,
 )
-def buscar_caged_id(
+def buscar_caged_por_id(
     registro_id: int,
     db: Session = Depends(get_db),
 ):
@@ -157,21 +170,6 @@ def deletar_caged(
             detail="Registro não encontrado.",
         )
 
-    return {"message": "Registro deletado com sucesso."}
-
-
-@router.get(
-    "/stats/resumo",
-)
-def estatisticas(
-    db: Session = Depends(get_db),
-):
-    """
-    Retorna estatísticas básicas do CAGED.
-    """
-
-    total = repositorio.contar_registros(db)
-
     return {
-        "total_registros": total,
+        "message": "Registro deletado com sucesso.",
     }

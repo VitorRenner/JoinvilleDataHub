@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class CagedBase(BaseModel):
     """
-    Campos base do registro CAGED.
+    Campos compartilhados dos registros CAGED.
     """
 
     competencia: str
@@ -17,7 +17,7 @@ class CagedBase(BaseModel):
 
 class CagedCreate(CagedBase):
     """
-    Schema para criação de registros.
+    Schema utilizado para criação de registros CAGED.
     """
 
     pass
@@ -25,7 +25,7 @@ class CagedCreate(CagedBase):
 
 class CagedBulkCreate(BaseModel):
     """
-    Schema para criação de múltiplos registros.
+    Schema utilizado para criação de múltiplos registros CAGED.
     """
 
     registros: list[CagedCreate]
@@ -33,7 +33,7 @@ class CagedBulkCreate(BaseModel):
 
 class CagedResponse(CagedBase):
     """
-    Schema de resposta da API.
+    Schema utilizado nas respostas da API.
     """
 
     id: int

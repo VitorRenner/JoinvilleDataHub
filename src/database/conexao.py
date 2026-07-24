@@ -1,16 +1,15 @@
-import logging
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from src.core.settings import settings
 
-logger = logging.getLogger(__name__)
-
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
 )
+
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -19,12 +18,13 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
+
 Base = declarative_base()
 
 
-def get_db() -> Session:
+def get_db() -> Generator[Session]:
     """
-    Cria uma sessão do banco e garante o fechamento.
+    Cria uma sessão do banco de dados.
     """
 
     db = SessionLocal()

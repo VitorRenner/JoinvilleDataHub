@@ -1,8 +1,7 @@
-from typing import Any
-
 from sqlalchemy.orm import Session
 
 from src.database.models import CagedMovimentacao
+from src.schemas.caged import CagedCreate
 
 
 def buscar_caged(
@@ -19,10 +18,14 @@ def buscar_caged(
     query = db.query(CagedMovimentacao)
 
     if competencia:
-        query = query.filter(CagedMovimentacao.competencia == competencia)
+        query = query.filter(
+            CagedMovimentacao.competencia == competencia,
+        )
 
     if setor:
-        query = query.filter(CagedMovimentacao.setor.ilike(f"%{setor}%"))
+        query = query.filter(
+            CagedMovimentacao.setor.ilike(f"%{setor}%"),
+        )
 
     return query.offset(skip).limit(limit).all()
 
@@ -32,11 +35,15 @@ def buscar_por_id(
     registro_id: int,
 ) -> CagedMovimentacao | None:
     """
-    Busca um registro pelo ID.
+    Busca um registro do CAGED pelo identificador.
     """
 
     return (
-        db.query(CagedMovimentacao).filter(CagedMovimentacao.id == registro_id).first()
+        db.query(CagedMovimentacao)
+        .filter(
+            CagedMovimentacao.id == registro_id,
+        )
+        .first()
     )
 
 
@@ -44,7 +51,7 @@ def contar_registros(
     db: Session,
 ) -> int:
     """
-    Retorna a quantidade de registros cadastrados.
+    Retorna a quantidade total de registros cadastrados.
     """
 
     return db.query(CagedMovimentacao).count()
@@ -52,10 +59,13 @@ def contar_registros(
 
 def upsert_caged(
     db: Session,
-    registros: list[dict[str, Any]],
+    registros: list[CagedCreate],
 ) -> int:
     """
-    Cria novos registros ou atualiza existentes.
+    Cria novos registros ou atualiza registros existentes.
+
+    A identificação do registro é feita através da combinação:
+    competência + setor.
     """
 
     processados = 0
@@ -65,19 +75,23 @@ def upsert_caged(
             registro = (
                 db.query(CagedMovimentacao)
                 .filter(
-                    CagedMovimentacao.competencia == dados["competencia"],
-                    CagedMovimentacao.setor == dados["setor"],
+                    CagedMovimentacao.competencia == dados.competencia,
+                    CagedMovimentacao.setor == dados.setor,
                 )
                 .first()
             )
 
             if registro:
-                registro.saldo = dados["saldo"]
-                registro.admissoes = dados["admissoes"]
-                registro.demissoes = dados["demissoes"]
+                registro.admissoes = dados.admissoes
+                registro.demissoes = dados.demissoes
+                registro.saldo = dados.saldo
 
             else:
-                db.add(CagedMovimentacao(**dados))
+                db.add(
+                    CagedMovimentacao(
+                        **dados.model_dump(),
+                    )
+                )
 
             processados += 1
 
@@ -95,7 +109,7 @@ def deletar_caged(
     registro_id: int,
 ) -> bool:
     """
-    Remove um registro pelo ID.
+    Remove um registro do CAGED pelo identificador.
     """
 
     registro = buscar_por_id(

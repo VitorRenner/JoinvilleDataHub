@@ -1,5 +1,3 @@
-from .atualizacao_caged import atualizar_caged
-
-__all__ = [
-    "atualizar_caged",
-]
+"""
+Camada responsável pelas regras de negócio e orquestração dos serviços.
+"""

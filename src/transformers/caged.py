@@ -10,6 +10,7 @@ COLUNAS_OBRIGATORIAS = (
     "saldo",
 )
 
+
 MAPEAMENTO_COLUNAS = {
     "competencia": "competencia",
     "setor": "setor",
@@ -21,7 +22,7 @@ MAPEAMENTO_COLUNAS = {
 
 class RegistroCaged(TypedDict):
     """
-    Estrutura esperada de um registro do CAGED.
+    Estrutura intermediária de um registro CAGED.
     """
 
     competencia: str
@@ -35,7 +36,7 @@ def transformar_caged(
     df: pd.DataFrame,
 ) -> list[RegistroCaged]:
     """
-    Padroniza os dados do CAGED para persistência no banco.
+    Padroniza os dados brutos do CAGED para persistência.
     """
 
     if df.empty:
@@ -81,7 +82,7 @@ def validar_dados(
     list[dict],
 ]:
     """
-    Valida registros antes da gravação no banco.
+    Valida registros antes da persistência.
     """
 
     registros_validos = []
@@ -101,16 +102,19 @@ def validar_dados(
         for campo in (
             "admissoes",
             "demissoes",
-            "saldo",
         ):
             valor = registro.get(campo)
 
             if not isinstance(valor, int):
                 erros.append(f"{campo} deve ser numérico.")
-                continue
 
-            if valor < 0:
+            elif valor < 0:
                 erros.append(f"{campo} não pode ser negativo.")
+
+        saldo = registro.get("saldo")
+
+        if not isinstance(saldo, int):
+            erros.append("saldo deve ser numérico.")
 
         if erros:
             registro_invalido = registro.copy()
