@@ -1,3 +1,6 @@
+# Dados brutos CAGED
+data/raw/
+
 # Ambiente virtual
 .venv/
 venv/
@@ -23,3 +26,7 @@ Desktop.ini
 
 # macOS
 .DS_Store
+X
+ˆX
+ˆx
+
