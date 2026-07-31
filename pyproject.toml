@@ -16,6 +16,7 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "pandas>=3.0.5",
     "alembic>=1.18.5",
+    "openai>=2.52.0",
 ]
 
 [dependency-groups]

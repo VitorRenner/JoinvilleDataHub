@@ -12,11 +12,9 @@ COLUNAS_OBRIGATORIAS = (
 
 
 MAPEAMENTO_COLUNAS = {
-    "competencia": "competencia",
-    "setor": "setor",
-    "admissoes": "admissoes",
-    "demissoes": "demissoes",
-    "saldo": "saldo",
+    "competênciamov": "competencia",
+    "seção": "setor",
+    "tipomovimentação": "tipo_movimentacao",
 }
 
 
@@ -32,9 +30,9 @@ class RegistroCaged(TypedDict):
     saldo: int
 
 
-def transformar_caged(
-    df: pd.DataFrame,
-) -> list[RegistroCaged]:
+def trasnformar_caged(
+        df:pd.DataFrame,
+) -> pd.DataFrame:
     """
     Padroniza os dados brutos do CAGED para persistência.
     """

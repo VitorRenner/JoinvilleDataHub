@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def main():
+def main() -> None:
     arquivo = Path(
         "data/raw/caged/202606/202606/CAGEDMOV202606.txt"
     )
@@ -31,6 +31,9 @@ def main():
 
     print("\nTipos das colunas:")
     print(df.dtypes)
+
+    print("\nValores da coluna 'tipomovimentação':")
+    print(df["tipomovimentação"].value_counts().sort_index())
 
 
 if __name__ == "__main__":

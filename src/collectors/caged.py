@@ -60,7 +60,7 @@ class CagedCollector(BaseCollector):
         return pd.DataFrame(
             columns=[
                 "competencia",
-                "municipio",
+                "município",
                 "setor",
                 "admissoes",
                 "demissoes",
@@ -87,12 +87,17 @@ class CagedCollector(BaseCollector):
         if not caminho.exists():
             raise FileNotFoundError(f"Arquivo não encontrado: {caminho}")
 
-        df = self.read_excel(str(caminho))
+        df = self.read_csv(
+            str(caminho),
+            sep ';',
+            encoding="UTF-8",
+            low_memory=False,
+        )
 
-        if "municipio" not in df.columns:
+        if "município" not in df.columns:
             raise ValueError("A coluna 'municipio' não foi encontrada no arquivo.")
 
-        df = df[df["municipio"] == codigo_municipio]
+        df = df[df["município"] == codigo_municipio]
 
         logger.info(
             "Encontrados %d registros para o município %d.",
