@@ -30,7 +30,7 @@ class RegistroCaged(TypedDict):
     saldo: int
 
 
-def trasnformar_caged(
+def transformar_caged(
         df:pd.DataFrame,
 ) -> pd.DataFrame:
     """

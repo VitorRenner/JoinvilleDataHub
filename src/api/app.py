@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from src.api.routers import caged, ibge
+from src.database.conexao import engine
 from src.scheduler.scheduler import iniciar_scheduler, parar_scheduler
 
 API_TITLE = "CAGED API - Joinville"
@@ -80,14 +82,25 @@ def root() -> dict:
     "/health",
     summary="Status da aplicação",
 )
-def health_check() -> dict:
+def health_check(response: Response) -> dict:
     """
-    Verifica se a aplicação está disponível.
+    Verifica se a aplicação e o banco de dados estão disponíveis.
     """
 
+    try:
+        with engine.connect() as conexao:
+            conexao.execute(text("SELECT 1"))
+
+        database_status = "connected"
+
+    except Exception:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        database_status = "unavailable"
+
     return {
-        "status": "healthy",
+        "status": "healthy" if database_status == "connected" else "unhealthy",
         "application": API_TITLE,
         "version": API_VERSION,
         "scheduler": "enabled",
+        "database": database_status,
     }

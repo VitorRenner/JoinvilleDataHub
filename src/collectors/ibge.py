@@ -3,7 +3,7 @@ from typing import Any
 
 import requests
 
-from collectors import BaseCollector
+from src.collectors.base import BaseCollector
 
 BASE_URL = "https://servicodados.ibge.gov.br/api/v1"
 CODIGO_JOINVILLE = 4209102
