@@ -103,16 +103,30 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 
 ---
 
-# Backlog Atual
+## Sessão 08 (04/08/2026)
+
+### Concluído
+
+- Implementação da coleta oficial dos dados do Novo CAGED via FTP do Ministério do Trabalho e Previdência (`ftp.mtps.gov.br/pdet/microdados/NOVO CAGED`).
+- Download automático dos arquivos oficiais (CAGEDMOV, CAGEDFOR e CAGEDEXC) por competência, com cache local em `data/raw/caged/`.
+- Extração dos arquivos `.7z` oficiais (biblioteca `py7zr`).
+- Correção do código do município de Joinville usado no filtro dos microdados (o arquivo oficial não usa o código IBGE completo, e sim o código sem dígito verificador).
+- Correção do ano inicial de cobertura do coletor para 2020, início da série do Novo CAGED (o valor anterior correspondia ao CAGED antigo, de layout diferente).
+- Implementação da agregação das movimentações individuais (uma linha por trabalhador) em saldo de admissões, demissões e saldo por competência e setor, combinando movimentações dentro do prazo, fora do prazo e exclusões — igual à metodologia oficial de apuração do Novo CAGED.
+- Detecção automática da competência mais recente publicada, usada como padrão pelo coletor e pelo serviço de atualização quando nenhuma competência é informada.
+- Ajuste do intervalo padrão do Scheduler (antes 30 segundos, incompatível com uma fonte de dados publicada mensalmente) para verificação diária.
+- Validação do pipeline completo (Collector → Transformer → Repository → PostgreSQL) com dados reais da competência 2026/06, incluindo teste de idempotência do upsert.
+
+### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
 
-- [ ] Implementar coleta oficial dos dados do CAGED.
-- [ ] Implementar download automático dos arquivos.
-- [ ] Processar os arquivos oficiais.
-- [ ] Integrar Collector → Transformer → Repository.
-- [ ] Finalizar o fluxo automático do Scheduler.
-- [ ] Validar todo o pipeline de atualização.
+- [x] Implementar coleta oficial dos dados do CAGED.
+- [x] Implementar download automático dos arquivos.
+- [x] Processar os arquivos oficiais.
+- [x] Integrar Collector → Transformer → Repository.
+- [x] Finalizar o fluxo automático do Scheduler.
+- [x] Validar todo o pipeline de atualização.
 - [ ] Concluir a integração prática com o IBGE.
 - [ ] Revisar configurações da aplicação.
 
@@ -151,3 +165,4 @@ Construir um ecossistema de engenharia de software que represente um sistema pro
 | Data | Versão | Descrição |
 |------|---------|-----------|
 | 20/07/2026 | v0.1 | Conclusão da primeira auditoria arquitetônica. |
+| 04/08/2026 | v0.2 | Coleta oficial do Novo CAGED implementada e validada com dados reais. |

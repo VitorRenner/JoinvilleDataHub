@@ -22,8 +22,8 @@ LOG_SEPARATOR = "=" * 50
 
 
 def atualizar_caged(
-    ano: int = 2024,
-    mes: int = 1,
+    ano: int | None = None,
+    mes: int | None = None,
 ) -> int:
     """
     Executa o fluxo completo de atualização dos dados do CAGED.
@@ -34,25 +34,31 @@ def atualizar_caged(
     - validação;
     - persistência no banco.
 
+    Quando `ano`/`mes` não são informados, atualiza a competência mais
+    recente disponível na fonte oficial.
+
     Retorna:
         Quantidade de registros processados.
     """
 
     inicio_execucao = perf_counter()
 
-    logger.info(LOG_SEPARATOR)
-    logger.info("Iniciando atualização do CAGED.")
-    logger.info(
-        "Competência: %d/%02d",
-        ano,
-        mes,
-    )
-    logger.info(LOG_SEPARATOR)
-
     db = SessionLocal()
 
     try:
         collector = CagedCollector()
+
+        if ano is None or mes is None:
+            ano, mes = collector.competencia_mais_recente()
+
+        logger.info(LOG_SEPARATOR)
+        logger.info("Iniciando atualização do CAGED.")
+        logger.info(
+            "Competência: %d/%02d",
+            ano,
+            mes,
+        )
+        logger.info(LOG_SEPARATOR)
 
         logger.info("Coletando dados do CAGED.")
 

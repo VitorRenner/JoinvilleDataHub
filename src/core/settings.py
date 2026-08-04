@@ -18,7 +18,9 @@ class Settings(BaseSettings):
 
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
 
-    SCHEDULER_INTERVAL_SECONDS: int = 30
+    # O Novo CAGED é publicado mensalmente pelo Ministério do Trabalho, então
+    # o padrão verifica por atualizações uma vez por dia.
+    SCHEDULER_INTERVAL_SECONDS: int = 86400
 
     DEBUG: bool = False
 

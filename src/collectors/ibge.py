@@ -72,3 +72,4 @@ class IBGECollector(BaseCollector):
         url = f"{self.base_url}/localidades/municipios/{CODIGO_JOINVILLE}"
 
         return self._buscar_json(url)
+
