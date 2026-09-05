@@ -1,4 +1,5 @@
 import logging
+import time
 from ftplib import FTP
 from pathlib import Path
 
@@ -46,24 +47,32 @@ class CagedCollector(BaseCollector):
     def _conectar_ftp(self) -> FTP:
         """
         Abre uma conexão com o FTP oficial de microdados do Ministério do Trabalho.
+        Tenta até 3 vezes com backoff exponencial.
         """
-
-        try:
-            ftp = FTP(encoding="latin-1")
-
-            ftp.connect(
-                FTP_HOST,
-                timeout=self.REQUEST_TIMEOUT_SECONDS,
-            )
-
-            ftp.login()
-
-            return ftp
-
-        except OSError as erro:
-            raise RuntimeError(
-                f"Erro ao conectar ao FTP do CAGED: {erro}"
-            ) from erro
+        max_tentativas = 3
+        for tentativa in range(1, max_tentativas + 1):
+            try:
+                ftp = FTP(encoding="latin-1")
+                ftp.connect(
+                    FTP_HOST,
+                    timeout=self.REQUEST_TIMEOUT_SECONDS,
+                )
+                ftp.login()
+                return ftp
+            except OSError as erro:
+                if tentativa == max_tentativas:
+                    raise RuntimeError(
+                        f"Erro ao conectar ao FTP do CAGED após {max_tentativas} tentativas: {erro}"
+                    ) from erro
+                wait = 2 ** tentativa
+                logger.warning(
+                    "Tentativa %d/%d de conexão FTP falhou: %s. Aguardando %ds para retry.",
+                    tentativa,
+                    max_tentativas,
+                    erro,
+                    wait,
+                )
+                time.sleep(wait)
 
     def competencia_mais_recente(self) -> tuple[int, int]:
         """
@@ -160,12 +169,30 @@ class CagedCollector(BaseCollector):
                         "Baixando %s via FTP.",
                         nome_arquivo,
                     )
-
-                    with caminho_7z.open("wb") as arquivo:
-                        ftp.retrbinary(
-                            f"RETR {nome_arquivo}",
-                            arquivo.write,
-                        )
+                    max_tentativas = 3
+                    for tentativa in range(1, max_tentativas + 1):
+                        try:
+                            with caminho_7z.open("wb") as arquivo:
+                                ftp.retrbinary(
+                                    f"RETR {nome_arquivo}",
+                                    arquivo.write,
+                                )
+                            break
+                        except OSError as erro:
+                            if tentativa == max_tentativas:
+                                raise RuntimeError(
+                                    f"Falha ao baixar {nome_arquivo} após {max_tentativas} tentativas: {erro}"
+                                ) from erro
+                            wait = 2 ** tentativa
+                            logger.warning(
+                                "Tentativa %d/%d de download de %s falhou: %s. Aguardando %ds.",
+                                tentativa,
+                                max_tentativas,
+                                nome_arquivo,
+                                erro,
+                                wait,
+                            )
+                            time.sleep(wait)
 
                 logger.info(
                     "Extraindo %s.",

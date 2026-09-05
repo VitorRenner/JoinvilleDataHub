@@ -1,22 +1,28 @@
+import json
 import logging
 import sys
-
-LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+from datetime import datetime
 
 
-def configurar_logging(
-    nivel: int = logging.INFO,
-) -> None:
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_obj = {
+            "timestamp": datetime.utcfromtimestamp(record.created).isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_obj["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(log_obj, ensure_ascii=False)
+
+
+def configurar_logging(nivel: int = logging.INFO) -> None:
     """
-    Configura o sistema de logs da aplicação.
+    Configura o sistema de logs da aplicação com formato JSON.
     """
-
-    logging.basicConfig(
-        level=nivel,
-        format=LOG_FORMAT,
-        datefmt=DATE_FORMAT,
-        stream=sys.stdout,
-        force=True,
-    )
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(nivel)

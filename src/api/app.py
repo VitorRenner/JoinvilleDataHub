@@ -6,6 +6,7 @@ from sqlalchemy import text
 
 from src.api.routers import caged, ibge
 from src.database.conexao import engine
+# Scheduler movido para execução externa (cron/systemd). Mantido import para compatibilidade.
 from src.scheduler.scheduler import iniciar_scheduler, parar_scheduler
 
 API_TITLE = "CAGED API - Joinville"
@@ -17,13 +18,11 @@ API_VERSION = "1.0.0"
 async def lifespan(_: FastAPI):
     """
     Executa ações durante inicialização e encerramento da aplicação.
+    Scheduler desabilitado por padrão; use cron/systemd para agendamento.
     """
-
-    iniciar_scheduler()
-
+    # iniciar_scheduler()  # descomente se quiser rodar in-process (não recomendado para múltiplas réplicas)
     yield
-
-    parar_scheduler()
+    # parar_scheduler()
 
 
 app = FastAPI(
@@ -101,6 +100,6 @@ def health_check(response: Response) -> dict:
         "status": "healthy" if database_status == "connected" else "unhealthy",
         "application": API_TITLE,
         "version": API_VERSION,
-        "scheduler": "enabled",
+        "scheduler": "external (cron/systemd)",
         "database": database_status,
     }

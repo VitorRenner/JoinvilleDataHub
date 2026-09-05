@@ -1,3 +1,5 @@
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from src.database.models import CagedMovimentacao
@@ -62,46 +64,28 @@ def upsert_caged(
     registros: list[CagedCreate],
 ) -> int:
     """
-    Cria novos registros ou atualiza registros existentes.
-
-    A identificação do registro é feita através da combinação:
-    competência + setor.
+    Cria novos registros ou atualiza existentes usando INSERT ... ON CONFLICT.
+    A chave de conflito é (competencia, setor).
     """
 
-    processados = 0
+    if not registros:
+        return 0
 
-    try:
-        for dados in registros:
-            registro = (
-                db.query(CagedMovimentacao)
-                .filter(
-                    CagedMovimentacao.competencia == dados.competencia,
-                    CagedMovimentacao.setor == dados.setor,
-                )
-                .first()
-            )
-
-            if registro:
-                registro.admissoes = dados.admissoes
-                registro.demissoes = dados.demissoes
-                registro.saldo = dados.saldo
-
-            else:
-                db.add(
-                    CagedMovimentacao(
-                        **dados.model_dump(),
-                    )
-                )
-
-            processados += 1
-
-        db.commit()
-
-        return processados
-
-    except Exception:
-        db.rollback()
-        raise
+    stmt = insert(CagedMovimentacao).values(
+        [r.model_dump() for r in registros]
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["competencia", "setor"],
+        set_={
+            "admissoes": stmt.excluded.admissoes,
+            "demissoes": stmt.excluded.demissoes,
+            "saldo": stmt.excluded.saldo,
+            "atualizado_em": func.now(),
+        },
+    )
+    result = db.execute(stmt)
+    db.commit()
+    return result.rowcount
 
 
 def deletar_caged(

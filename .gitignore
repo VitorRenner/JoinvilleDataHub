@@ -12,22 +12,14 @@ __pycache__/
 
 # Variáveis de ambiente
 .env
+.env.local
 
-# IntelliJ
+# Configuração pessoal (IDE / Claude Code)
+.claude/settings.local.json
 .idea/
-*.iml
 
-# Windows
-Thumbs.db
-Desktop.ini
-
-# Logs
-*.log
-
-# macOS
+# Sistema
 .DS_Store
-X
-ˆX
-ˆx
-.env
 
+# Node (se usar em algum ponto do projeto)
+node_modules/
