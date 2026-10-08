@@ -23,3 +23,6 @@ __pycache__/
 
 # Node (se usar em algum ponto do projeto)
 node_modules/
+
+# Planejamento pessoal (não faz parte da documentação pública do projeto)
+docs/PLANO_CEMPRE.md

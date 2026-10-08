@@ -18,9 +18,15 @@ class Settings(BaseSettings):
 
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
 
+    CEMPRE_BASE_URL: str = "https://apisidra.ibge.gov.br"
+
     # O Novo CAGED é publicado mensalmente pelo Ministério do Trabalho, então
     # o padrão verifica por atualizações uma vez por dia.
     SCHEDULER_INTERVAL_SECONDS: int = 86400
+
+    # O CEMPRE só sai uma vez por ano, então não faz sentido checar todo dia.
+    # 2592000 segundos = 30 dias.
+    SCHEDULER_INTERVAL_SECONDS_CEMPRE: int = 2592000
 
     DEBUG: bool = False
 

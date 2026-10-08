@@ -43,7 +43,7 @@ Ele entra como uma **segunda fonte de dados**, ao lado do CAGED, dentro do mesmo
 Cada seta é uma etapa de uma esteira: o dado bruto entra de um lado, e só sai pronto pro consumo do outro lado depois de passar por todas as estações.
 
 ---
-
+source venv/bin/activatesource venv/bin/activate√
 ## 🗂️ Onde cada peça vai morar no projeto
 
 | Camada | Arquivo | Status | O que faz |
