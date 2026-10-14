@@ -10,12 +10,6 @@ from src.transformers.cempre import (
     validar_dados,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
-
-
 logger = logging.getLogger(__name__)
 
 LOG_SEPARATOR = "=" * 50
@@ -127,4 +121,11 @@ def atualizar_cempre(
 
 
 if __name__ == "__main__":
+    # Só configura o log "simples" quando o service roda na mão. Quando é
+    # importado pelo scheduler, quem manda no log é o configurar_logging().
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+    )
+
     atualizar_cempre()
