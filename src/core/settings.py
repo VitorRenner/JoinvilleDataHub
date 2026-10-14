@@ -25,8 +25,9 @@ class Settings(BaseSettings):
     SCHEDULER_INTERVAL_SECONDS: int = 86400
 
     # O CEMPRE só sai uma vez por ano, então não faz sentido checar todo dia.
-    # 2592000 segundos = 30 dias.
-    SCHEDULER_INTERVAL_SECONDS_CEMPRE: int = 2592000
+    # Roda uma vez por mês, numa data fixa (dia 1º, às 3h da manhã).
+    SCHEDULER_CEMPRE_DIA: int = 1
+    SCHEDULER_CEMPRE_HORA: int = 3
 
     DEBUG: bool = False
 

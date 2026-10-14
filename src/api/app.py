@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
@@ -12,6 +13,8 @@ from src.scheduler.scheduler import iniciar_scheduler, parar_scheduler
 API_TITLE = "CAGED API - Joinville"
 API_DESCRIPTION = "API para dados de emprego e desemprego de Joinville/SC"
 API_VERSION = "1.0.0"
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -57,6 +60,28 @@ app.include_router(
 )
 
 
+# Registro protegido: o import do router do CEMPRE fica DENTRO do try.
+# Se algo no código do CEMPRE quebrar, a API sobe mesmo assim, só sem
+# a rota /cempre, e o CAGED segue funcionando normalmente.
+CEMPRE_DISPONIVEL = False
+
+try:
+    from src.api.routers import cempre
+
+    app.include_router(
+        cempre.router,
+        prefix="/cempre",
+        tags=["CEMPRE"],
+    )
+
+    CEMPRE_DISPONIVEL = True
+
+except Exception:
+    logger.exception(
+        "Router do CEMPRE indisponível. A API segue sem a rota /cempre.",
+    )
+
+
 @app.get(
     "/",
     summary="Informações da API",
@@ -66,14 +91,19 @@ def root() -> dict:
     Retorna informações básicas da API.
     """
 
+    endpoints = {
+        "caged": "/caged",
+        "ibge": "/ibge",
+    }
+
+    if CEMPRE_DISPONIVEL:
+        endpoints["cempre"] = "/cempre"
+
     return {
         "name": API_TITLE,
         "version": API_VERSION,
         "docs": "/docs",
-        "endpoints": {
-            "caged": "/caged",
-            "ibge": "/ibge",
-        },
+        "endpoints": endpoints,
     }
 
 
