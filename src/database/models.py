@@ -132,24 +132,25 @@ class CempreEmprego(Base):
         index=True,
     )
 
-    unidades_locais: Mapped[int] = mapped_column(
+    # Os três campos numéricos aceitam NULL: o IBGE pode omitir o valor
+    # ("X" = sigiloso, "..." = não disponível). NULL = "não sabemos";
+    # 0 = zero de verdade. Sem default=0 de propósito, para um valor
+    # ausente nunca virar zero escondido.
+    unidades_locais: Mapped[int | None] = mapped_column(
         Integer,
-        nullable=False,
-        default=0,
+        nullable=True,
     )
 
-    pessoal_ocupado: Mapped[int] = mapped_column(
+    pessoal_ocupado: Mapped[int | None] = mapped_column(
         Integer,
-        nullable=False,
-        default=0,
+        nullable=True,
     )
 
     # Salário médio mensal em reais. Float porque o IBGE manda com centavos
     # (ex.: 4494.44), diferente dos campos do CAGED que são contagens.
-    salario_medio: Mapped[float] = mapped_column(
+    salario_medio: Mapped[float | None] = mapped_column(
         Float,
-        nullable=False,
-        default=0,
+        nullable=True,
     )
 
     criado_em: Mapped[datetime] = mapped_column(
