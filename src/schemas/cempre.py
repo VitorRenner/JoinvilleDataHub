@@ -10,9 +10,10 @@ class CempreBase(BaseModel):
 
     ano: str
     setor: str
-    unidades_locais: int
-    pessoal_ocupado: int
-    salario_medio: float
+    # None = valor não divulgado pelo IBGE (sigiloso ou não disponível).
+    unidades_locais: int | None = None
+    pessoal_ocupado: int | None = None
+    salario_medio: float | None = None
 
 
 class CempreCreate(CempreBase):
