@@ -40,6 +40,13 @@ def listar_cempre(
             le=1000,
             description="Quantidade máxima de registros",
         ),
+        incluir_total: bool = Query(
+            True,
+            description=(
+                    "Inclui a linha 'Total' (soma de todas as seções). "
+                    "Use false para somar ou comparar setores sem contar em dobro."
+            ),
+        ),
         db: Session = Depends(get_db),
 ):
     """
@@ -52,8 +59,8 @@ def listar_cempre(
         setor,
         skip,
         limit,
+        incluir_total,
     )
-
 
 # Precisa vir ANTES de "/{registro_id}". Senão o FastAPI tenta ler
 # "stats" como um id numérico e devolve 422.

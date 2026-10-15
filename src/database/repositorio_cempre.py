@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from src.database.models import CempreEmprego
 from src.schemas.cempre import CempreCreate
 
+# Nome exato que o SIDRA usa para a linha que soma todas as seções da CNAE.
+SETOR_TOTAL = "Total"
+
 
 def buscar_cempre(
         db: Session,
@@ -12,12 +15,21 @@ def buscar_cempre(
         setor: str | None = None,
         skip: int = 0,
         limit: int = 100,
+        incluir_total: bool = True,
 ) -> list[CempreEmprego]:
     """
     Busca registros do CEMPRE com filtros opcionais.
+
+    incluir_total=False remove a linha "Total" (soma de todas as seções).
+    Use False quando for somar ou comparar setores, para não contar em dobro.
     """
 
     query = db.query(CempreEmprego)
+
+    if not incluir_total:
+        query = query.filter(
+            CempreEmprego.setor != SETOR_TOTAL,
+            )
 
     if ano:
         query = query.filter(
