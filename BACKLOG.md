@@ -117,6 +117,30 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - Ajuste do intervalo padrão do Scheduler (antes 30 segundos, incompatível com uma fonte de dados publicada mensalmente) para verificação diária.
 - Validação do pipeline completo (Collector → Transformer → Repository → PostgreSQL) com dados reais da competência 2026/06, incluindo teste de idempotência do upsert.
 
+## Sessão 09 (01/10/2026 – 15/10/2026) — Integração do CEMPRE (IBGE)
+
+### Concluído
+
+- Integração do CEMPRE (Cadastro Central de Empresas, IBGE) como segunda fonte de dados, no mesmo servidor do CAGED.
+- Coleta via API do SIDRA, tabela 9510 (CEMPRE por seção da CNAE 2.0), com as variáveis unidades locais (706), pessoal ocupado (707) e salário médio mensal (10143).
+- Transformer com pivot do formato "esticado" do SIDRA (uma linha por variável) para o formato "achatado" do projeto (uma linha por ano + setor).
+- Tratamento dos símbolos especiais do IBGE: `-` (zero absoluto) vira 0; `X` (sigiloso), `...` (não disponível) e `..` (não se aplica) viram NULL.
+- Tabela `cempre_emprego` criada via Alembic (primeiro uso de migrações no projeto), com uma segunda migração liberando NULL nas colunas numéricas.
+- Repositório próprio (`repositorio_cempre.py`) com upsert idempotente pela chave ano + setor.
+- Service de atualização com carga histórica pela linha de comando (`python -m src.services.atualizacao_cempre 2022 2023`), processando cada ano de forma independente.
+- Router somente leitura em `/cempre` (listagem com filtros, resumo e busca por ID), incluindo o filtro `incluir_total` para evitar soma dobrada com a linha "Total".
+- Registro protegido do router no `app.py`: se o CEMPRE falhar, a API sobe sem a rota `/cempre` e o CAGED segue funcionando.
+- Job mensal do CEMPRE no scheduler, com gatilho de data fixa (`cron`, dia 1º às 3h) e tratamento de erro próprio, isolado do job do CAGED.
+- Testes do router e do transformer (18 testes passando).
+- Validação do pipeline completo com dados reais de 2022, 2023 e 2024, incluindo teste de idempotência do upsert e teste do downgrade da migração.
+
+### Decisões arquitetônicas
+
+- Cada fonte de dados fica isolada nos próprios arquivos (collector, transformer, repositório, service, router), no mesmo servidor, para que a falha de uma não derrube a outra.
+- Valores não divulgados pelo IBGE são gravados como NULL, e não como 0, para não confundir "não sabemos" com "zero".
+- Rotas do CEMPRE são somente leitura: o dado é oficial e apenas o service grava no banco.
+- Agendamentos de fontes com publicação esparsa usam data fixa no calendário, e não intervalo, porque o intervalo recomeça a cada reinício do servidor.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -127,7 +151,9 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [x] Integrar Collector → Transformer → Repository.
 - [x] Finalizar o fluxo automático do Scheduler.
 - [x] Validar todo o pipeline de atualização.
-- [ ] Concluir a integração prática com o IBGE.
+- [x] Concluir a integração prática com o IBGE (CEMPRE).
+- [x] Disponibilizar o CEMPRE na API (`/cempre`).
+- [x] Agendar a atualização automática do CEMPRE.
 - [ ] Revisar configurações da aplicação.
 
 ---
@@ -138,6 +164,9 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Melhorar documentação técnica.
 - [ ] Revisar desempenho das consultas.
 - [ ] Revisar tratamento de exceções da API.
+- [ ] Avaliar a carga dos anos do CEMPRE anteriores a 2022 (outras tabelas do SIDRA, possível mudança de metodologia).
+- [ ] Separar `models.py` por fonte de dados (`models_caged.py` / `models_cempre.py`).
+- [ ] Criar migração para o índice `ix_caged_movimentacao_id`, que existe no model mas não no banco.
 
 ---
 
@@ -148,11 +177,13 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Configurar Docker.
 - [ ] Configurar Docker Compose.
 - [ ] Implementar GitHub Actions.
-- [ ] Implementar Alembic.
+- [x] Implementar Alembic.
 - [ ] Adicionar Logging estruturado.
 - [ ] Implementar Health Check.
 - [ ] Configurar Observabilidade.
 - [ ] Planejar Deploy.
+- [ ] Avaliar troca de `httpx` por `httpx2` (aviso de depreciação do Starlette nos testes).
+- [ ] Adicionar teste para a leitura dos anos pela linha de comando no service do CEMPRE.
 
 ---
 
@@ -166,3 +197,4 @@ Construir um ecossistema de engenharia de software que represente um sistema pro
 |------|---------|-----------|
 | 20/07/2026 | v0.1 | Conclusão da primeira auditoria arquitetônica. |
 | 04/08/2026 | v0.2 | Coleta oficial do Novo CAGED implementada e validada com dados reais. |
+| 15/10/2026 | v0.3 | Integração do CEMPRE (IBGE) como segunda fonte de dados, isolada do CAGED. |

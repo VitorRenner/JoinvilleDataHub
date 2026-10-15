@@ -87,4 +87,17 @@ def test_buscar_cempre_por_id(client):
 def test_root_lista_cempre(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert resp.json()["endpoints"]["cempre"] == "/cempre"
+    assert resp.json()["endpoints"]["cempre"] == "/cempre" \
+
+
+def test_listar_cempre_sem_total(client):
+    _inserir_registro(setor="Total")
+    _inserir_registro(setor="C Indústrias de transformação")
+
+    resp = client.get("/cempre/")
+    assert len(resp.json()) == 2
+
+    resp = client.get("/cempre/", params={"incluir_total": "false"})
+    assert resp.status_code == 200
+    setores = [registro["setor"] for registro in resp.json()]
+    assert setores == ["C Indústrias de transformação"]

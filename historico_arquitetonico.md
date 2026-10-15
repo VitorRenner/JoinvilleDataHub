@@ -190,6 +190,30 @@ Grande parte do código foi refatorada para seguir um padrão único.
 
 ---
 
+# Outubro/2026 — Segunda Fonte de Dados: CEMPRE (IBGE)
+
+O projeto passou a integrar uma segunda fonte de dados: o **CEMPRE** (Cadastro Central de Empresas), pesquisa anual do IBGE.
+
+Enquanto o CAGED mostra o **fluxo** do emprego (admissões e demissões mês a mês), o CEMPRE mostra o **estoque** (quantas unidades, pessoas ocupadas e salário médio existem em cada setor, uma vez por ano).
+
+### Implementação
+
+* coleta pela API do SIDRA (tabela 9510, por seção da CNAE 2.0);
+* transformer com pivot das variáveis e tratamento dos símbolos especiais do IBGE;
+* tabela própria (`cempre_emprego`) criada via Alembic;
+* repositório, service e router próprios;
+* job mensal próprio no scheduler;
+* carga histórica de 2022 a 2024.
+
+### Desafios
+
+* escolher a tabela correta do SIDRA: a 9509 não abre os dados por setor;
+* diferenciar zero absoluto (`-`) de valor sigiloso (`X`) ou indisponível (`...`);
+* evitar que a linha "Total" do IBGE seja somada junto com as seções;
+* garantir que um erro no CEMPRE não afete o CAGED.
+
+---
+
 # Principais Decisões Arquiteturais
 
 Durante essa fase foram tomadas decisões importantes.
@@ -264,6 +288,32 @@ Durante a revisão geral foram definidos padrões para:
 
 ---
 
+## Isolamento por Fonte de Dados
+
+Cada fonte de dados (CAGED, CEMPRE) possui seus próprios collector, transformer, repositório, service e router.
+
+O router do CEMPRE é registrado de forma protegida na aplicação, e o job do CEMPRE possui tratamento de erro próprio no scheduler.
+
+Essa decisão garante que a falha de uma fonte não derrube a outra, sem a necessidade de manter servidores separados.
+
+---
+
+## Valores Não Divulgados
+
+Valores omitidos pelo IBGE (sigilosos ou indisponíveis) são gravados como `NULL`, e não como `0`.
+
+Essa decisão evita que a ausência de informação seja confundida com um valor real igual a zero.
+
+---
+
+## Migrações com Alembic
+
+A partir do CEMPRE, alterações no banco passaram a ser feitas por migrações versionadas do Alembic.
+
+Essa decisão permite aplicar e desfazer mudanças de forma controlada, mantendo o histórico do schema junto com o código.
+
+---
+
 # Estado Atual da Arquitetura
 
 Atualmente a arquitetura segue o fluxo abaixo.
@@ -312,6 +362,7 @@ Essa estrutura facilita manutenção, expansão e testes.
 * PostgreSQL
 * Pandas
 * APScheduler
+* Alembic
 * Pydantic
 * Uvicorn
 * uv
@@ -327,6 +378,8 @@ Durante o desenvolvimento foram obtidos aprendizados importantes.
 * Separação de responsabilidades facilita evolução da aplicação.
 * Refatorações periódicas aumentam a qualidade do código.
 * Documentar decisões técnicas torna a manutenção mais simples.
+* Isolar cada fonte de dados permite crescer o projeto sem aumentar o risco de quebrar o que já funciona.
+* Dado ausente e dado igual a zero são informações diferentes e precisam ser tratados de formas diferentes.
 
 ---
 
@@ -335,7 +388,7 @@ Durante o desenvolvimento foram obtidos aprendizados importantes.
 As próximas versões da aplicação deverão contemplar:
 
 * implementação completa da coleta automática do CAGED;
-* integração com novos serviços do IBGE;
+* avaliação dos anos do CEMPRE anteriores a 2022;
 * ampliação da cobertura de testes;
 * melhoria da documentação técnica;
 * Docker;
@@ -356,6 +409,7 @@ As próximas versões da aplicação deverão contemplar:
 | 23/06/2026 | Primeira versão funcional                                |
 | Julho/2026 | Migração para novo ambiente de desenvolvimento           |
 | Julho/2026 | Revisão completa da arquitetura e padronização do código |
+| Outubro/2026 | Integração do CEMPRE (IBGE) como segunda fonte de dados |
 
 ---
 
