@@ -1,13 +1,15 @@
 # Como rodar o CAGED API em 5 minutos (macOS)
 
-Este guia foi reescrito depois de ler o código-fonte inteiro do projeto na pasta mais recente (`15/caged_api_15 DESENVOLVIMENTO`), o `uv.lock` (dependência por dependência) e o histórico do Git. Ele substitui qualquer guia anterior.
+Este guia foi reescrito depois de ler o código-fonte inteiro do projeto, o `uv.lock` (dependência por dependência) e o histórico do Git. Ele substitui qualquer guia anterior.
+
+> **Atualização de outubro/2026:** o projeto agora tem duas fontes de dados — **CAGED** (Ministério do Trabalho) e **CEMPRE** (IBGE) — e as tabelas do banco passaram a ser criadas pelo **Alembic**. Os Passos 8, 9c, 10, 11 e 12 foram atualizados.
 
 ---
 
 ## Achados antes de começar — provavelmente é um destes que te travou
 
-1. **O nome da pasta do projeto tem um espaço sobrando no final**: `caged_api_15 DESENVOLVIMENTO ` (repare o espaço antes das aspas). Se você digitar o `cd` na mão e errar esse espaço, o Terminal responde `No such file or directory`. A solução é usar autocompletar (Tab) — veja o Passo 3.
-2. **`alembic upgrade head` quebra em um banco novo.** A única migration que existe (`alembic/versions/ff49cd00f76d_initial_schema.py`) faz `ALTER TABLE caged_movimentacao` — ela **assume que a tabela já existe**. Ela não tem um `create_table`. Se você rodar Alembic num banco vazio, o erro é `relation "caged_movimentacao" does not exist`. **A única forma correta de criar a tabela pela primeira vez é `uv run -m src.scripts.criar_tabelas`** (Passo 8). Alembic só serve para mudanças futuras de schema, depois que a tabela já existir.
+1. **O caminho da pasta do projeto tem espaços** (`Estágio 2026`, `JOINVILLE DATA HUB`). Se você digitar o `cd` na mão sem aspas, o Terminal responde `No such file or directory`. A solução é usar aspas ou autocompletar (Tab) — veja o Passo 3.
+2. **As tabelas são criadas pelo Alembic, não pelo `criar_tabelas`.** A primeira migration (`ff49cd00f76d_initial_schema.py`) cria a tabela do CAGED, e as seguintes criam e ajustam a tabela do CEMPRE. Num banco novo, `uv run alembic upgrade head` cria tudo (Passo 8). **Não misture com `src.scripts.criar_tabelas`**: ele cria as tabelas sem registrar a versão no Alembic, e o próximo `upgrade head` falha tentando criá-las de novo.
 3. **O `.env` tem uma linha quebrada.** A segunda linha do arquivo é uma chave da OpenAI solta, sem `NOME_DA_VARIAVEL=` na frente. Isso não derruba o `python-dotenv` (ele ignora a linha com um aviso), mas é sujeira que vale limpar — Passo 6.
 4. **A coleta de dados do CAGED depende de FTP (porta 21) para `ftp.mtps.gov.br`.** Redes de faculdade, corporativas ou com CGNAT costumam bloquear essa porta. Para garantir que o projeto rode em 5 minutos **independente da sua rede**, este guia usa por padrão os arquivos que **já estão em cache local** em `data/raw/caged/202605/` e `data/raw/caged/202606/` (competências 05/2026 e 06/2026, já baixadas e extraídas anteriormente). O pipeline detecta que os `.txt` já existem e pula o download — Passo 9.
 5. **Os comandos usam caminhos relativos** (`data/raw/caged/...`), então todo `uv run` **precisa ser executado com o terminal já dentro da pasta raiz do projeto** (a que tem o `main.py`). Rodar de qualquer outro lugar quebra a coleta e a criação das tabelas.
@@ -77,16 +79,16 @@ Deve responder algo como `/tmp:5432 - accepting connections`.
 O caminho completo no seu Mac é:
 
 ```
-/Users/vitaorenner/Estágio 2026/JOINVILLE DATA HUB PASTA MÃE /15/caged_api_15 DESENVOLVIMENTO
+/Users/vitaorenner/Estágio 2026/joinville-data-hub/JOINVILLE DATA HUB
 ```
 
-Como o nome da pasta tem espaço no final (ver "Achado 1" acima), **não digite esse caminho inteiro na mão**. Faça assim:
+Como o caminho tem espaços (ver "Achado 1" acima), use aspas:
 
 ```bash
-cd ~/"Estágio 2026"/JOINVILLE*/15/caged_api_15*
+cd ~/"Estágio 2026"/joinville-data-hub/"JOINVILLE DATA HUB"
 ```
 
-Esse comando usa `*` (curinga) exatamente para não depender de acertar o espaço sobrando. Confirme que entrou no lugar certo:
+Confirme que entrou no lugar certo:
 
 ```bash
 pwd
@@ -150,6 +152,10 @@ IBGE_BASE_URL=https://servicodados.ibge.gov.br/api/v1
 
 SCHEDULER_INTERVAL_SECONDS=86400
 
+CEMPRE_BASE_URL=https://apisidra.ibge.gov.br
+SCHEDULER_CEMPRE_DIA=1
+SCHEDULER_CEMPRE_HORA=3
+
 # se você realmente precisa da chave da OpenAI em algum lugar do projeto,
 # dê um nome pra ela, por exemplo:
 # OPENAI_API_KEY=sk-proj-...
@@ -177,18 +183,30 @@ Ajuste `postgres:1234` se a senha do seu usuário `postgres` local for outra. `c
 ## 8. Criar as tabelas — **use só este comando**
 
 ```bash
-uv run -m src.scripts.criar_tabelas
+uv run alembic upgrade head
 ```
 
-Isso lê `src/database/models.py` e cria a tabela `caged_movimentacao` (já com todas as colunas, incluindo `criado_em`/`atualizado_em`) diretamente no banco `caged_db`. Você deve ver: `Tabelas criadas com sucesso.`
+Isso aplica, em ordem, todas as migrations de `alembic/versions/`:
 
-**Não rode `uv run alembic upgrade head` aqui** — como explicado no achado 2, essa migration específica faz `ALTER TABLE` numa tabela que ela assume já existir, e vai falhar com `relation "caged_movimentacao" does not exist` num banco recém-criado. Alembic só entra em cena depois, se você alterar `models.py` e quiser gerar uma nova migration.
+1. `ff49cd00f76d` — cria a tabela `caged_movimentacao`;
+2. `c54a3a3e7feb` — cria a tabela `cempre_emprego`;
+3. `7b2e4d9a1c3f` — libera `NULL` nas colunas numéricas do CEMPRE (valores sigilosos do IBGE).
 
-### Conferir no pgAdmin que a tabela foi criada
+Confirme a versão aplicada:
+
+```bash
+uv run alembic current
+```
+
+Deve responder `7b2e4d9a1c3f (head)`.
+
+**Não rode `uv run -m src.scripts.criar_tabelas` num banco novo** — como explicado no achado 2, ele cria as tabelas sem registrar a versão no Alembic. Se você já rodou por engano, marque o banco como atualizado com `uv run alembic stamp head`.
+
+### Conferir no pgAdmin que as tabelas foram criadas
 
 1. No pgAdmin, expanda `caged_db` → **Schemas** → **public** → **Tables**.
 2. Clique com o botão direito em **Tables** → **Refresh...**
-3. Deve aparecer `caged_movimentacao`.
+3. Devem aparecer `caged_movimentacao`, `cempre_emprego` e `alembic_version` (a tabela onde o Alembic guarda a versão atual).
 
 ---
 
@@ -221,6 +239,26 @@ Sem argumentos, o serviço pergunta ao FTP `ftp.mtps.gov.br` qual é a competên
 
 ---
 
+### 9c. Carregar os dados do CEMPRE (IBGE)
+
+O CEMPRE vem da API do SIDRA (IBGE), por HTTPS — não depende de FTP. Para carregar os anos disponíveis (2022, 2023 e 2024):
+
+```bash
+uv run python -m src.services.atualizacao_cempre 2022 2023 2024
+```
+
+Sem argumentos, o serviço busca só o ano mais recente publicado:
+
+```bash
+uv run python -m src.services.atualizacao_cempre
+```
+
+Cada ano gera um bloco de log terminando em `Persistência concluída. Registros processados: 22.` (21 seções da CNAE + a linha "Total"). Se um ano falhar, os outros continuam, e o erro aparece completo no log. Pode rodar de novo sem duplicar (upsert pela chave ano + setor).
+
+Detalhes da fonte, das variáveis e do tratamento dos valores especiais do IBGE em `docs/CEMPRE_API.md`.
+
+---
+
 ## 10. Ver os dados no pgAdmin (clique a clique)
 
 1. Expanda **Databases** → `caged_db` → **Schemas** → **public** → **Tables**.
@@ -231,6 +269,11 @@ Sem argumentos, o serviço pergunta ao FTP `ftp.mtps.gov.br` qual é a competên
    SELECT * FROM caged_movimentacao ORDER BY competencia DESC;
    ```
    e aperte **F5** (ou o botão ▶) para executar.
+5. Para o CEMPRE, o mesmo caminho com a tabela **cempre_emprego**. Consulta útil (evolução do emprego total de Joinville):
+   ```sql
+   SELECT ano, pessoal_ocupado, salario_medio FROM cempre_emprego WHERE setor = 'Total' ORDER BY ano;
+   ```
+   Células vazias (`NULL`) significam valor sigiloso ou não divulgado pelo IBGE — não é zero.
 
 ---
 
@@ -240,7 +283,9 @@ Sem argumentos, o serviço pergunta ao FTP `ftp.mtps.gov.br` qual é a competên
 uv run uvicorn src.api.app:app --reload
 ```
 
-Isso sobe o FastAPI em `http://127.0.0.1:8000` e inicia automaticamente o **scheduler** (`SCHEDULER_INTERVAL_SECONDS`, padrão uma vez por dia), que a partir daí mantém os dados atualizados sozinho, sem precisar repetir o Passo 9 manualmente.
+Isso sobe o FastAPI em `http://127.0.0.1:8000`.
+
+**Sobre a atualização automática:** o scheduler está **desligado dentro da API** por padrão (ver `lifespan` em `src/api/app.py`); a recomendação é agendar externamente (cron/systemd) os comandos dos Passos 9b e 9c. Se quiser rodá-lo dentro da API, descomente `iniciar_scheduler()` no `lifespan`. Ele tem dois jobs isolados: o do CAGED (a cada `SCHEDULER_INTERVAL_SECONDS`, padrão uma vez por dia) e o do CEMPRE (todo dia 1º do mês, às 3h).
 
 ### Testar no Swagger
 
@@ -248,6 +293,9 @@ Isso sobe o FastAPI em `http://127.0.0.1:8000` e inicia automaticamente o **sche
 2. `GET /caged/` → **Try it out** → **Execute** → deve retornar a lista de registros.
 3. `GET /caged/stats/resumo` → **Execute** → total de registros.
 4. `GET /health` → **Execute** → confirma `"database": "connected"`.
+5. `GET /cempre/` → **Try it out** → preencha `ano` com `2024` → **Execute** → 22 registros.
+6. Mesmo teste com `incluir_total` = `false` → 21 registros (sem a linha "Total", que é a soma das seções).
+7. `GET /cempre/stats/resumo` → **Execute** → total de registros do CEMPRE.
 
 ---
 
@@ -257,24 +305,28 @@ Depois de fazer os Passos 1–4 (Homebrew, uv, PostgreSQL, pgAdmin, Python 3.14)
 
 ```bash
 uv sync
-uv run -m src.scripts.criar_tabelas
+uv run alembic upgrade head
 uv run python -c "from src.services.atualizacao_caged import atualizar_caged; atualizar_caged(ano=2026, mes=6)"
+uv run python -m src.services.atualizacao_cempre 2022 2023 2024
 uv run uvicorn src.api.app:app --reload
 ```
 
-(O Passo 7 — criar o banco `caged_db` no pgAdmin — precisa ser feito manualmente uma vez antes de rodar `criar_tabelas`, já que ainda não existe um comando no projeto que crie o banco em si, só as tabelas dentro dele.)
+(O Passo 7 — criar o banco `caged_db` no pgAdmin — precisa ser feito manualmente uma vez antes de rodar o `alembic upgrade head`, já que ainda não existe um comando no projeto que crie o banco em si, só as tabelas dentro dele.)
 
 ---
 
 ## 13. Solução de problemas (causa raiz, não só sintoma)
 
-- **`cd: no such file or directory`** → o espaço sobrando no nome da pasta (achado 1). Use o comando com `*` do Passo 3, ou abra a pasta no Finder e arraste-a para dentro da janela do Terminal depois de digitar `cd `.
+- **`cd: no such file or directory`** → os espaços no caminho da pasta (achado 1). Use o comando com aspas do Passo 3, ou abra a pasta no Finder e arraste-a para dentro da janela do Terminal depois de digitar `cd `.
 - **`uv: command not found`** → fechou e abriu o Terminal antes do Homebrew terminar de configurar o `PATH`? Rode `brew list uv` para confirmar que instalou, e reabra o Terminal.
 - **`pydantic_core._pydantic_core.ValidationError: DATABASE_URL Field required`** → o `.env` não está sendo lido. Confirme que o arquivo se chama exatamente `.env` (não `.env.txt`) e está na raiz do projeto (mesmo nível do `main.py`), e que você está rodando o comando de dentro dessa pasta.
 - **`sqlalchemy.exc.OperationalError: connection to server ... failed`** → o PostgreSQL não está rodando. Rode `brew services list` (deve mostrar `postgresql@16` como `started`); se não, `brew services start postgresql@16`. Depois `pg_isready` para confirmar.
 - **`sqlalchemy.exc.OperationalError: database "caged_db" does not exist`** → você pulou o Passo 7 (criar o banco no pgAdmin), ou criou com outro nome. O nome tem que bater exatamente com o `DATABASE_URL` do `.env`.
-- **`relation "caged_movimentacao" does not exist`** → ou você pulou o Passo 8, ou rodou Alembic em vez de `criar_tabelas` num banco vazio (achado 2). Rode `uv run -m src.scripts.criar_tabelas`.
+- **`relation "caged_movimentacao" does not exist`** (ou `cempre_emprego`) → você pulou o Passo 8. Rode `uv run alembic upgrade head`.
+- **`relation "..." already exists` ao rodar o Alembic** → as tabelas foram criadas antes pelo `criar_tabelas`, sem registrar a versão (achado 2). Rode `uv run alembic stamp head` uma vez.
+- **`null value in column ... violates not-null constraint` no CEMPRE** → o banco está numa versão antiga do schema. Rode `uv run alembic upgrade head` e confira com `uv run alembic current` (deve ser `7b2e4d9a1c3f`).
+- **`Ano XXXX não foi carregado` no CEMPRE** → o traceback logo abaixo mostra a causa. Os mais comuns: ano inexistente na tabela 9510 do SIDRA (disponíveis: 2022 a 2024) ou API do IBGE fora do ar.
 - **`FTP` travado, timeout, ou `ConnectionRefusedError` na porta 21** → sua rede está bloqueando FTP de saída (comum em redes de faculdade/corporativas). Use o modo do Passo 9 (dados em cache, sem rede) ou troque de rede para o Passo 9b.
 - **`KeyError: 'município'`** → algum editor salvou o `.txt` do CAGED com outra codificação. Não edite os arquivos dentro de `data/raw/caged/` manualmente; se corromper, apague a pasta da competência (ex.: `rm -rf data/raw/caged/202606`) e rode o Passo 9b para baixar de novo.
 - **Porta 8000 já em uso** → `uv run uvicorn src.api.app:app --reload --port 8001`.
-- **Alterou `models.py` depois de já ter rodado `criar_tabelas` uma vez** → agora sim é hora do Alembic: `uv run alembic revision --autogenerate -m "descricao"` seguido de `uv run alembic upgrade head`.
+- **Alterou `models.py`** → crie uma migration: `uv run alembic revision --autogenerate -m "descricao"`, **revise o arquivo gerado** (o autogenerate pode incluir diferenças antigas de outra tabela, como o índice `ix_caged_movimentacao_id`) e depois `uv run alembic upgrade head`.
