@@ -1,3 +1,4 @@
+import argparse
 import logging
 from time import perf_counter
 
@@ -119,6 +120,28 @@ def atualizar_cempre(
 
         logger.info(LOG_SEPARATOR)
 
+def _ler_anos_da_linha_de_comando() -> list[int | None]:
+    """
+    Lê os anos passados na linha de comando.
+
+    Sem argumentos -> [None] (ano mais recente).
+    Ex.: python -m src.services.atualizacao_cempre 2022 2023
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Atualiza os dados do CEMPRE (IBGE) no banco.",
+    )
+
+    parser.add_argument(
+        "anos",
+        nargs="*",
+        type=int,
+        help="Anos a carregar (ex.: 2022 2023). Vazio = mais recente.",
+    )
+
+    argumentos = parser.parse_args()
+
+    return argumentos.anos or [None]
 
 if __name__ == "__main__":
     # Só configura o log "simples" quando o service roda na mão. Quando é
@@ -128,4 +151,13 @@ if __name__ == "__main__":
         format="%(asctime)s | %(levelname)s | %(message)s",
     )
 
-    atualizar_cempre()
+    # Cada ano roda separado: se um falhar, os outros continuam.
+    for ano in _ler_anos_da_linha_de_comando():
+        try:
+            atualizar_cempre(ano=ano)
+
+        except Exception:
+            logger.exception(
+                "Ano %s não foi carregado. Seguindo para o próximo.",
+                ano,
+            )
