@@ -28,3 +28,6 @@ node_modules/
 docs/PLANO_CEMPRE.md
 
 test.db
+
+# Downloads temporários da RFB (vários GB)
+data/rfb_temp/
