@@ -40,3 +40,19 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+#  RFB (Receita Federal / CNPJ)
+
+RFB_BASE_URL: str = "<endereço da pasta de dados abertos do CNPJ>"
+# ↑ confirme abrindo no navegador: deve listar pastas AAAA-MM
+
+RFB_MUNICIPIO_JOINVILLE: str = ""
+# ↑ vazio de propósito: quem preenche é o script de hoje
+# É STRING, não int, pelo mesmo motivo do cnpj_basico (zeros à esquerda)
+
+RFB_PASTA_TEMP: str = "data/rfb_temp"
+# ↑ precisa bater EXATAMENTE com o que você pôs no .gitignore
+
+RFB_TIMEOUT_SEGUNDOS: int = 300
+RFB_TENTATIVAS: int = 3
+# ↑ o servidor da Receita é lento e cai; valores generosos
