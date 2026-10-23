@@ -1,58 +1,67 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
-    """
-    Configurações globais da aplicação.
-    """
+    "Configurações globais da aplicação."
 
     ENVIRONMENT: str = "development"
 
-    API_TITLE: str = "CAGED API - Joinville"
+    API_TITLE: str = "CAGED_API - Joinville"
     API_VERSION: str = "1.0.0"
-    API_DESCRIPTION: str = "API para dados do CAGED e IBGE."
+    API_DESCRIPTION: str = "API para dados do CAGED e do IBGE."
 
-    DATABASE_URL: str
+    DATABASE_URL: str                  #sem padrão -> vem obrigatoriamente do .env
 
     CAGED_BASE_URL: str = "https://portaldatransparencia.gov.br"
-
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
-
     CEMPRE_BASE_URL: str = "https://apisidra.ibge.gov.br"
 
-    # O Novo CAGED é publicado mensalmente pelo Ministério do Trabalho, então
-    # o padrão verifica por atualizações uma vez por dia.
+    #Novo CAGED é mensal -> checar uma vez ao dia
     SCHEDULER_INTERVAL_SECONDS: int = 86400
 
-    # O CEMPRE só sai uma vez por ano, então não faz sentido checar todo dia.
-    # Roda uma vez por mês, numa data fixa (dia 1º, às 3h da manhã).
+    # CEMPRE é anual -> roda todo dia 1º às 3h
     SCHEDULER_CEMPRE_DIA: int = 1
     SCHEDULER_CEMPRE_HORA: int = 3
 
+    # ------------------------- RFB (Receita Federal Brasileira ) --------------------------------------
+    # Movido para esta seção
+    # (antes estava fora do padrão da classe -> settings.RFB ... resultava em erro AttributeError).
+
+    RFB_BASE_URL: str = "https://arquivos.receitafederal.gov.br"
+    #URL confirmada no Google Chrome, entra listando os arquivos do site da Receita Federal Brasileira
+    # (RFB), com pastas mensais.
+
+    #Ela (RFB) lista as pastas com AAAA-MM
+
+
+
+    RFB_SHARE_TOKEN: str = "YggdBLfdninEJX9"
+
+    RFB_WEBDAV_PATH: str = "/public.php/webdav"
+
+    RFB_MUNICIPIO_JOINVILLE: str = ""
+
+    # Continua o campo de configuração da URL até o script de hoje encontrar o código.
+    # Também valora como TEXTO, não como INTEIRO, preservando os zeros à esquerda.
+
+    RFB_PASTA_TEMP: str = "data/rfb_temp"
+    # É necessário fechar e completar exatamente com a linha do arquivo.gitignore
+
+    RFB_TIMEOUT_SEGUNDOS: int = 300
+    RFB_TENTATIVAS: int = 3
+
+    # Como o servidor da Receita Federal Brasileira é lento e cai, deixamos como 3 com um valor generoso.
+
+    #--------------------------------------------------------------------------------- fim do bloco
+
     DEBUG: bool = False
-
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore",
-    )
-
+        env_file = ".env",
+        env_file_encoding = "utf-8",
+        case_sensitive = True,
+        extra = "ignore",
+     )
 
 settings = Settings()
 
-#  RFB (Receita Federal / CNPJ)
+# Nada mais da RFB para cá
 
-RFB_BASE_URL: str = "<endereço da pasta de dados abertos do CNPJ>"
-# ↑ confirme abrindo no navegador: deve listar pastas AAAA-MM
-
-RFB_MUNICIPIO_JOINVILLE: str = ""
-# ↑ vazio de propósito: quem preenche é o script de hoje
-# É STRING, não int, pelo mesmo motivo do cnpj_basico (zeros à esquerda)
-
-RFB_PASTA_TEMP: str = "data/rfb_temp"
-# ↑ precisa bater EXATAMENTE com o que você pôs no .gitignore
-
-RFB_TIMEOUT_SEGUNDOS: int = 300
-RFB_TENTATIVAS: int = 3
-# ↑ o servidor da Receita é lento e cai; valores generosos
