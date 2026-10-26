@@ -31,3 +31,7 @@ test.db
 
 # Downloads temporários da RFB (vários GB)
 data/rfb_temp/
+
+
+# Arquivos compactados de dados brutos (CAGED, etc.)
+*.7z

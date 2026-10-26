@@ -7,8 +7,7 @@ from sqlalchemy import text
 
 from src.api.routers import caged, ibge
 from src.database.conexao import engine
-# Scheduler movido para execução externa (cron/systemd). Mantido import para compatibilidade.
-from src.scheduler.scheduler import iniciar_scheduler, parar_scheduler
+from src.core.logging import configurar_logging
 
 API_TITLE = "CAGED API - Joinville"
 API_DESCRIPTION = "API para dados de emprego e desemprego de Joinville/SC"
@@ -21,11 +20,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(_: FastAPI):
     """
     Executa ações durante inicialização e encerramento da aplicação.
-    Scheduler desabilitado por padrão; use cron/systemd para agendamento.
+
+    O scheduler NÃO roda aqui: ele tem processo próprio
+    (python -m src.scheduler.run), para não duplicar jobs entre
+    os workers do gunicorn.
     """
-    # iniciar_scheduler()  # descomente se quiser rodar in-process (não recomendado para múltiplas réplicas)
+    configurar_logging()
     yield
-    # parar_scheduler()
 
 
 app = FastAPI(
@@ -130,6 +131,6 @@ def health_check(response: Response) -> dict:
         "status": "healthy" if database_status == "connected" else "unhealthy",
         "application": API_TITLE,
         "version": API_VERSION,
-        "scheduler": "external (cron/systemd)",
+        "scheduler": "processo separado (src.scheduler.run)",
         "database": database_status,
     }

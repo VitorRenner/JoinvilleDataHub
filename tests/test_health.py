@@ -4,4 +4,4 @@ def test_health(client):
     data = resp.json()
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
-    assert data["scheduler"] == "external (cron/systemd)"
+    assert data["scheduler"] == "processo separado (src.scheduler.run)"
