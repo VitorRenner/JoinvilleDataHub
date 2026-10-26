@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     RFB_WEBDAV_PATH: str = "/public.php/webdav"
 
-    RFB_MUNICIPIO_JOINVILLE: str = ""
+    RFB_MUNICIPIO_JOINVILLE: str = "8179"
 
     # Continua o campo de configuração da URL até o script de hoje encontrar o código.
     # Também valora como TEXTO, não como INTEIRO, preservando os zeros à esquerda.

@@ -16,7 +16,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 COPY --from=builder /app/.venv ./.venv
 COPY src ./src
-COPY alembic.ini alembic/ ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
 EXPOSE 8000
