@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
     CEMPRE_BASE_URL: str = "https://apisidra.ibge.gov.br"
 
-    #Novo CAGED é mensal -> checar uma vez ao dia
-    SCHEDULER_INTERVAL_SECONDS: int = 86400
+    # Novo CAGED é mensal -> checar uma vez ao dia, às 2h (horário de Brasília)
+    SCHEDULER_CAGED_HORA: int = 2
 
     # CEMPRE é anual -> roda todo dia 1º às 3h
     SCHEDULER_CEMPRE_DIA: int = 1

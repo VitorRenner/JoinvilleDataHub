@@ -3,13 +3,34 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from src.core.settings import settings
-from src.services.atualizacao_caged import atualizar_caged
 
 logger = logging.getLogger(__name__)
 
-# Um único scheduler (o "técnico") para as duas fontes. Cada fonte tem o
+# Um único scheduler (o "técnico") para todas as fontes. Cada fonte tem o
 # seu próprio job.
-scheduler = BackgroundScheduler()
+# timezone: o container roda em UTC. Sem isso, "3h" viraria meia-noite
+# no horário de Brasília.
+scheduler = BackgroundScheduler(timezone="America/Sao_Paulo")
+
+
+def _job_caged() -> None:
+    """
+    Executa a atualização do CAGED de forma isolada.
+
+    Mesmo molde do CEMPRE: o import fica aqui dentro (e não no topo do
+    arquivo) para que um erro no código do CAGED não impeça o scheduler,
+    e os outros jobs, de subir. O erro é registrado no log e não é relançado.
+    """
+
+    try:
+        from src.services.atualizacao_caged import atualizar_caged
+
+        atualizar_caged()
+
+    except Exception:
+        logger.exception(
+            "Falha na atualização automática do CAGED.",
+        )
 
 
 def _job_cempre() -> None:
@@ -44,18 +65,18 @@ def iniciar_scheduler() -> None:
         return
 
     try:
+        # Gatilho "cron" (horário fixo no calendário) em vez de "interval":
+        # um intervalo recomeça do zero a cada reinício do processo e, se
+        # ele reiniciar com frequência, o job nunca roda.
         scheduler.add_job(
-            atualizar_caged,
-            trigger="interval",
-            seconds=settings.SCHEDULER_INTERVAL_SECONDS,
+            _job_caged,
+            trigger="cron",
+            hour=settings.SCHEDULER_CAGED_HORA,
             id="atualizacao_caged",
             name="Atualização automática do CAGED",
             replace_existing=True,
         )
 
-        # Gatilho "cron" (data fixa no calendário) em vez de "interval":
-        # um intervalo de 30 dias recomeça do zero a cada reinício do
-        # servidor e, se ele reiniciar com frequência, o job nunca roda.
         scheduler.add_job(
             _job_cempre,
             trigger="cron",
@@ -69,9 +90,9 @@ def iniciar_scheduler() -> None:
         scheduler.start()
 
         logger.info(
-            "Scheduler iniciado. CAGED a cada %s segundos; "
+            "Scheduler iniciado (horário de Brasília). CAGED todo dia às %sh; "
             "CEMPRE todo dia %s do mês, às %sh.",
-            settings.SCHEDULER_INTERVAL_SECONDS,
+            settings.SCHEDULER_CAGED_HORA,
             settings.SCHEDULER_CEMPRE_DIA,
             settings.SCHEDULER_CEMPRE_HORA,
         )

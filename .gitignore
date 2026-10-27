@@ -35,3 +35,4 @@ data/rfb_temp/
 
 # Arquivos compactados de dados brutos (CAGED, etc.)
 *.7z
+.env.docker

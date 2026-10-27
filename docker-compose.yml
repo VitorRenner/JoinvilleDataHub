@@ -1,0 +1,26 @@
+# Escalação do time: dois containers, mesma imagem, funções diferentes.
+
+services:
+
+  # O armador: atende as requisições (gunicorn, comando padrão do Dockerfile)
+  api:
+    build: .
+    image: joinville-data-hub
+    env_file: .env.docker
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # O pivô: roda os jobs agendados (CAGED, CEMPRE e, depois, RFB)
+  scheduler:
+    build: .
+    image: joinville-data-hub
+    env_file: .env.docker
+    command: ["python", "-m", "src.scheduler.run"]
+    volumes:
+      - dados:/app/data
+    restart: unless-stopped
+
+# O "armário" que sobrevive entre jogos
+volumes:
+  dados:

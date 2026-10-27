@@ -185,33 +185,116 @@ def procurar_joinville(caminho_zip):
 # do número de índice que ela tinha na tabela original.
 
 
+
+# ════════════════════════════════════════════════════════════════
+#  4. INSPECIONAR ESTABELECIMENTOS
+# ════════════════════════════════════════════════════════════════
+
+# Posição da coluna no CSV (começando em 0) -> nome que vamos usar.
+# Fonte: layout oficial dos dados abertos do CNPJ (PDF da Receita).
+COLUNAS_ESTABELECIMENTOS = {
+    0: "cnpj_basico",
+    5: "situacao_cadastral",
+    6: "data_situacao_cadastral",
+    10: "data_inicio_atividade",
+    11: "cnae_fiscal_principal",
+    19: "uf",
+    20: "municipio",
+}
+
+TAMANHO_BLOCO = 500_000  # linhas por vez
+
+
+def inspecionar_estabelecimentos(caminho_zip):
+    with zipfile.ZipFile(caminho_zip) as arquivo_zip:
+        nome_interno = arquivo_zip.namelist()[0]
+        print(f"Arquivo dentro do zip: {nome_interno}")
+
+        # Parte 1: só 5 linhas, todas as colunas -> conferir o layout
+        with arquivo_zip.open(nome_interno) as arquivo_csv:
+            amostra = pd.read_csv(
+                arquivo_csv,
+                sep=";",
+                header=None,
+                encoding="latin-1",
+                dtype=str,
+                nrows=5,
+            )
+
+        print(f"\nQuantidade de colunas: {amostra.shape[1]} (esperado: 30)")
+        print("\nColunas que vamos usar (primeira linha do arquivo):")
+        for posicao, nome in COLUNAS_ESTABELECIMENTOS.items():
+            print(f"  [{posicao:>2}] {nome:<25} = {amostra.iloc[0, posicao]}")
+
+        # Parte 2: arquivo inteiro, em blocos, só as colunas úteis
+        total_linhas = 0
+        blocos_joinville = []
+
+        with arquivo_zip.open(nome_interno) as arquivo_csv:
+            leitor = pd.read_csv(
+                arquivo_csv,
+                sep=";",
+                header=None,
+                encoding="latin-1",
+                dtype=str,
+                usecols=list(COLUNAS_ESTABELECIMENTOS),
+                chunksize=TAMANHO_BLOCO,
+            )
+
+            for bloco in leitor:
+                total_linhas += len(bloco)
+                bloco = bloco.rename(columns=COLUNAS_ESTABELECIMENTOS)
+                filtro = bloco["municipio"] == settings.RFB_MUNICIPIO_JOINVILLE
+                blocos_joinville.append(bloco[filtro])
+                print(f"  ... {total_linhas:,} linhas lidas")
+
+    joinville = pd.concat(blocos_joinville, ignore_index=True)
+
+    print(f"\nTotal de linhas no arquivo: {total_linhas:,}")
+    print(f"Estabelecimentos de Joinville neste arquivo: {len(joinville):,}")
+
+    print("\nUF dos estabelecimentos de Joinville (esperado: só SC):")
+    print(joinville["uf"].value_counts())
+
+    print("\nSituação cadastral em Joinville:")
+    print(joinville["situacao_cadastral"].value_counts())
+
+    print("\nExemplos de data de abertura e CNAE:")
+    print(joinville[["data_inicio_atividade", "cnae_fiscal_principal"]].head(3))
+
+    return joinville
+
+# Porque nrows=5 na parte 1: pra ver o layout não precisa ler 2 GB.
+# Porque abrir o zip duas vezes: o arquivo é lido em sequência, como uma fita.
+# Depois de ler as 5 linhas, o jeito simples de voltar ao começo é abrir de novo.
+# Porque usecols: lê só 7 das 30 colunas. Menos memória, e dados como
+# nome fantasia, endereço, telefone e e-mail nem passam pelo programa.
+# Porque chunksize: o pandas entrega o arquivo em pedaços de 500 mil linhas.
+# Cada pedaço é filtrado e descartado, então a memória não explode.
+# Porque a coluna "uf": prova cruzada. Se o código 8179 estiver certo,
+# todos os estabelecimentos achados têm que ser de SC.
+
 # ════════════════════════════════════════════════════════════════
 #  PROGRAMA PRINCIPAL
 # ════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     competencias = listar_competencias()
-    print(f"Competências disponíveis: {len(competencias)}")
-    print(f"Últimas 3: {competencias[-3:]}")
-
     mais_recente = competencias[-1]
     print(f"Usando: {mais_recente}\n")
 
+    caminho = PASTA_TEMP / "Estabelecimentos0.zip"
+
+    if caminho.exists():
+        print("Arquivo já baixado antes, reaproveitando.\n")
+    else:
+        inicio = time.time()
+        caminho = baixar_arquivo(mais_recente, "Estabelecimentos0.zip")
+        duracao = time.time() - inicio
+        tamanho_mb = caminho.stat().st_size / 1024 / 1024
+        print(f"Baixado: {tamanho_mb:.1f} MB em {duracao / 60:.1f} min\n")
+
     inicio = time.time()
-    caminho = baixar_arquivo(mais_recente, "Municipios.zip")
-    duracao = time.time() - inicio
-    tamanho_kb = caminho.stat().st_size / 1024
-    print(f"Baixado: {tamanho_kb:.1f} KB em {duracao:.1f}s\n")
+    inspecionar_estabelecimentos(caminho)
+    print(f"\nTempo de leitura: {(time.time() - inicio) / 60:.1f} min")
 
-    try:
-        procurar_joinville(caminho)
-    finally:
-        # shutil.rmtree(PASTA_TEMP, ignore_errors=True)
-        print("\n(limpeza desativada durante a exploração)")
-
-# [-1]: lista em ordem crescente -> a última é a mais nova.
-# Medir tempo e tamanho: primeira medida real do servidor,
-# ajuda a calibrar o timeout para os arquivos grandes.
-# Aqui o try/finally: a limpeza acontece mesmo se der erro.
-# Pois assim a limpeza está COMENTADA: o Municipios.zip fica na pasta
-# pra você olhar. Quando terminar a exploração, descomente a linha.
