@@ -22,4 +22,4 @@ RUN mkdir -p /app/data && chown appuser:appgroup /app/data
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
 EXPOSE 8000
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "src.api.app:app"]
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "src.api.app:app"]
