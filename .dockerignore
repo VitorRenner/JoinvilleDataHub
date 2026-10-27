@@ -1,1 +1,9 @@
-
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.git/
+.idea/
+data/
+test.db
