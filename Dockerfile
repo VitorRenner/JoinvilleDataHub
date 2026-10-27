@@ -18,6 +18,7 @@ COPY --from=builder /app/.venv ./.venv
 COPY src ./src
 COPY alembic.ini ./
 COPY alembic ./alembic
+RUN mkdir -p /app/data && chown appuser:appgroup /app/data
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
 EXPOSE 8000
