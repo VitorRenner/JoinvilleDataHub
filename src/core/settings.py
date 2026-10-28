@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     RFB_MUNICIPIO_JOINVILLE: str = "8179"
 
-    # Continua o campo de configuração da URL até o script de hoje encontrar o código.
+
     # Também valora como TEXTO, não como INTEIRO, preservando os zeros à esquerda.
 
     RFB_PASTA_TEMP: str = "data/rfb_temp"
@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     RFB_TENTATIVAS: int = 3
 
     # Como o servidor da Receita Federal Brasileira é lento e cai, deixamos como 3 com um valor generoso.
+
+    RFB_TAMANHO_BLOCO: int = 500_000
+    # Quantas linhas do CSV o pandas lê por vez.
+    # Cada bloco é filtrado (só Joinville) e descartado, então a memória
+    # nunca guarda o arquivo inteiro. Valor testado na inspeção.
+
+    # RFB publica mensalmente, mas sem data exata -> roda todo dia 15 às 4h
+    SCHEDULER_RFB_DIA: int = 15
+    SCHEDULER_RFB_HORA: int = 4
 
     #--------------------------------------------------------------------------------- fim do bloco
 
