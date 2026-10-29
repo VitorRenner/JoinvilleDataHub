@@ -29,6 +29,7 @@ PASTA_TEMP = Path(settings.RFB_PASTA_TEMP)
 TAMANHO_PEDACO_DOWNLOAD = 1024 * 1024  # 1 MB
 
 QUANTIDADE_PARTES = 10
+
 # A Receita divide Estabelecimentos e Empresas em 10 arquivos (0 a 9).
 
 # Posição da coluna no CSV (começando em 0) -> nome usado no projeto.
@@ -43,9 +44,18 @@ COLUNAS_ESTABELECIMENTOS = {
     20: "municipio",
 }
 
-# COLUNAS_EMPRESAS e COLUNAS_SIMPLES entram depois,
-# após conferir as posições no PDF da Receita.
+COLUNAS_EMPRESAS = {
+    0: "cnpj_basico",
+    5: "porte",
+}
 
+# A razão social (coluna 1) fica de fora: em MEI ela costuma conter o nome da pessoa.
+
+COLUNAS_SIMPLES = {
+    0: "cnpj_basico",
+    1: "opcao_simples",
+    4: "opcao_mei",
+}
 
 # ─────────────── Collector ───────────────
 
@@ -73,11 +83,9 @@ class RfbCollector(BaseCollector):
             raise RuntimeError(
                 f"Listagem da RFB falhou: status {resposta.status_code}"
             )
-
         # 207 (Multi-Status) é o código de sucesso do PROPFIND, não 200.
 
         competencias = sorted(set(re.findall(r"/(\d{4}-\d{2})/", resposta.text)))
-
         # As barras na regex garantem que só nomes de pasta são capturados.
         # No formato AAAA-MM, a ordem alfabética é a ordem cronológica.
 
@@ -143,28 +151,150 @@ class RfbCollector(BaseCollector):
 
         """Lê o CSV de dentro do zip em blocos e guarda só as linhas do filtro."""
 
-        raise NotImplementedError
+        blocos_filtrados = []
+        total_linhas = 0
 
-    def ler_estabelecimentos_joinville(self, competencia: str):
+        with zipfile.ZipFile(caminho_zip) as arquivo_zip:
+            nome_interno = arquivo_zip.namelist()[0]
 
-        """Percorre Estabelecimentos0..9 e devolve (tabela, conjunto de cnpj_basico)."""
+            # Cada zip da RFB tem um único CSV, com nome que muda a cada competência.
 
-        raise NotImplementedError
+            with arquivo_zip.open(nome_interno) as arquivo_csv:
+                leitor = pd.read_csv(
+                    arquivo_csv,
+                    sep=";",
+                    header=None,
+                    encoding="latin-1",
+                    dtype=str,
+                    usecols=list(colunas),
+                    chunksize=settings.RFB_TAMANHO_BLOCO,
+                )
+                # header=None: o CSV da RFB não tem cabeçalho.
+                # latin-1: a Receita usa ISO-8859-1; com utf-8 os acentos quebram.
+                # dtype=str: preserva os zeros à esquerda do cnpj_basico.
+                # usecols: lê só as colunas necessárias, os demais dados nem entram na memória.
+                # chunksize: entrega o arquivo em blocos, que são filtrados e descartados.
 
-    def ler_empresas(self, conjunto_cnpj: set, competencia: str) -> pd.DataFrame:
+                for bloco in leitor:
+                    total_linhas += len(bloco)
+                    bloco = bloco.rename(columns=colunas)
+                    blocos_filtrados.append(bloco[filtro(bloco)])
+                    logger.debug("%s: %s linhas lidas", caminho_zip.name, total_linhas)
+
+        if not blocos_filtrados:
+            return pd.DataFrame(columns=list(colunas.values()))
+
+        # Arquivo vazio: devolve uma tabela vazia com as colunas certas, em vez de erro.
+
+        resultado = pd.concat(blocos_filtrados, ignore_index=True)
+        logger.info(
+            "%s: %s linhas lidas, %s mantidas pelo filtro",
+            caminho_zip.name, total_linhas, len(resultado),
+        )
+        return resultado
+
+    def _ler_partes(
+            self, prefixo: str, competencia: str, colunas: dict, filtro
+    ) -> pd.DataFrame:
+
+        """Baixa e lê {prefixo} 0 até o 9.zip um por vez e junta as linhas do filtro."""
+
+        partes = []
+        for numero in range(QUANTIDADE_PARTES):
+            caminho = self.baixar(competencia, f"{prefixo}{numero}.zip")
+            try:
+                partes.append(self.ler_em_blocos(caminho, colunas, filtro))
+            finally:
+                caminho.unlink(missing_ok=True)
+
+            # Cada zip é apagado logo depois de lido, mesmo se a leitura falhar.
+            # Assim o disco nunca guarda mais de um arquivo de vários GB por vez.
+
+        return pd.concat(partes, ignore_index=True)
+
+    def ler_estabelecimentos_joinville(self, competencia: str) -> tuple[pd.DataFrame, set[str]]:
+
+        """Percorre Estabelecimentos 0 até o 9 e devolve (tabela, conjunto de cnpj_basico)."""
+
+        def eh_joinville(bloco: pd.DataFrame) -> pd.Series:
+            return bloco["municipio"] == settings.RFB_MUNICIPIO_JOINVILLE
+
+        # Filtro passado para o ler_em_blocos: True nas linhas de Joinville.
+
+        estabelecimentos = self._ler_partes(
+            "Estabelecimentos", competencia, COLUNAS_ESTABELECIMENTOS, eh_joinville
+        )
+        estabelecimentos = estabelecimentos.drop(columns="municipio")
+
+        # Depois do filtro, todas as linhas são de Joinville: a coluna não informa mais nada.
+
+        conjunto_cnpj = set(estabelecimentos["cnpj_basico"])
+
+        # Lista de CNPJs de Joinville, usada para filtrar Empresas e Simples.
+
+        logger.info(
+            "Joinville: %s estabelecimentos, %s cnpj_basico distintos",
+            len(estabelecimentos), len(conjunto_cnpj),
+        )
+        return estabelecimentos, conjunto_cnpj
+
+    def ler_empresas(self, conjunto_cnpj: set[str], competencia: str) -> pd.DataFrame:
 
         """Percorre Empresas0..9 e guarda só os cnpj_basico de Joinville."""
 
-        raise NotImplementedError
+        def eh_de_joinville(bloco: pd.DataFrame) -> pd.Series:
+            return bloco["cnpj_basico"].isin(conjunto_cnpj)
 
-    def ler_simples(self, conjunto_cnpj: set, competencia: str) -> pd.DataFrame:
+        # Empresas não tem município: filtra pelo conjunto vindo do Estabelecimentos.
+
+        empresas = self._ler_partes("Empresas", competencia, COLUNAS_EMPRESAS, eh_de_joinville)
+
+        empresas = empresas.drop_duplicates(subset="cnpj_basico")
+
+        # cnpj_basico duplicado multiplicaria linhas na junção do transformer.
+
+        logger.info("Joinville: %s registros encontrados em Empresas", len(empresas))
+        return empresas
+
+    def ler_simples(self, conjunto_cnpj: set[str], competencia: str) -> pd.DataFrame:
 
         """Lê o Simples.zip e guarda só os cnpj_basico de Joinville."""
 
-        raise NotImplementedError
+        def eh_de_joinville(bloco: pd.DataFrame) -> pd.Series:
+            return bloco["cnpj_basico"].isin(conjunto_cnpj)
 
-    def coletar(self, competencia: str | None = None):
+        caminho = self.baixar(competencia, "Simples.zip")
+        try:
+            simples = self.ler_em_blocos(caminho, COLUNAS_SIMPLES, eh_de_joinville)
+        finally:
+            caminho.unlink(missing_ok=True)
+
+        # Simples é um arquivo único (sem partes 0..9): não usa o _ler_partes.
+
+        simples = simples.drop_duplicates(subset="cnpj_basico")
+
+        logger.info("Joinville: %s registros encontrados em Simples", len(simples))
+        return simples
+
+    def coletar(self, competencia: str | None = None) -> tuple[str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         """Junta tudo: devolve (competencia, estabelecimentos, empresas, simples)."""
 
-        raise NotImplementedError
+        competencia = competencia or self.descobrir_competencia_mais_recente()
+        logger.info("Iniciando coleta da RFB, competência %s", competencia)
+
+        estabelecimentos, conjunto_cnpj = self.ler_estabelecimentos_joinville(competencia)
+
+        if not conjunto_cnpj:
+            raise RuntimeError(
+                f"Nenhum estabelecimento de Joinville (código "
+                f"{settings.RFB_MUNICIPIO_JOINVILLE}) em {competencia}. "
+                "O código do município ou o layout mudou?"
+            )
+
+        # Sem nenhum CNPJ, ler Empresas e Simples seria baixar vários GB à toa.
+
+        empresas = self.ler_empresas(conjunto_cnpj, competencia)
+        simples = self.ler_simples(conjunto_cnpj, competencia)
+
+        return competencia, estabelecimentos, empresas, simples
