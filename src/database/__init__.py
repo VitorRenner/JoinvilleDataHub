@@ -1,6 +1,6 @@
 from . import repositorio
 from .conexao import Base, SessionLocal, engine, get_db
-from .models import CagedMovimentacao, CempreEmprego
+from .models import CagedMovimentacao, CempreEmprego, RfbEmpresa
 
 __all__ = [
     "Base",
@@ -9,5 +9,6 @@ __all__ = [
     "get_db",
     "CagedMovimentacao",
     "CempreEmprego",
+    "RfbEmpresa",
     "repositorio",
 ]
