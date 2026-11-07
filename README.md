@@ -3,7 +3,7 @@
 
 **API em Python que coleta, trata e entrega dados públicos oficiais sobre emprego e empresas de Joinville/SC.**
 
-Os dados vêm de fontes do governo (Cadastro Geral de Empregados e Desempregados, Receita Federal Brasileira e Cadastro Central de Empresas), chegam brutos e em formatos diferentes, e saem daqui limpos, padronizados e prontos para consumo pelo site "Nexus", dentro do Programa de Iniciação Científica (PIC).
+Os dados vêm de fontes do governo ( Novo Cadastro Geral de Empregados e Desempregados, Receita Federal Brasileira e Cadastro Central de Empresas), chegam brutos e em formatos diferentes, e saem daqui limpos, padronizados e prontos para consumo pelo site "Nexus", dentro do Programa de Iniciação Científica (PIC).
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
