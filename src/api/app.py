@@ -83,6 +83,27 @@ except Exception:
     )
 
 
+# Registro protegido da RFB, mesmo padrão do CEMPRE: se o código da RFB
+# quebrar no import, a API sobe sem a rota /rfb e as outras seguem normais.
+RFB_DISPONIVEL = False
+
+try:
+    from src.api.routers import rfb
+
+    app.include_router(
+        rfb.router,
+        prefix="/rfb",
+        tags=["RFB"],
+    )
+
+    RFB_DISPONIVEL = True
+
+except Exception:
+    logger.exception(
+        "Router da RFB indisponível. A API segue sem a rota /rfb.",
+    )
+
+
 @app.get(
     "/",
     summary="Informações da API",
@@ -99,6 +120,9 @@ def root() -> dict:
 
     if CEMPRE_DISPONIVEL:
         endpoints["cempre"] = "/cempre"
+
+    if RFB_DISPONIVEL:
+        endpoints["rfb"] = "/rfb"
 
     return {
         "name": API_TITLE,
