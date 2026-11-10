@@ -108,7 +108,7 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 ### Concluído
 
 - Implementação da coleta oficial dos dados do Novo CAGED via FTP do Ministério do Trabalho e Previdência (`ftp.mtps.gov.br/pdet/microdados/NOVO CAGED`).
-- Download automático dos arquivos oficiais (CAGEDMOV, CAGEDFOR e CAGEDEXC) por competência, com cache local em `data/raw/caged/`.
+- Download automático dos arquivos oficiais (CAGEDMOV, CAGEDFOR e CAGEDEXC) por competência, com cache local em `data/raw/caged`.
 - Extração dos arquivos `.7z` oficiais (biblioteca `py7zr`).
 - Correção do código do município de Joinville usado no filtro dos microdados (o arquivo oficial não usa o código IBGE completo, e sim o código sem dígito verificador).
 - Correção do ano inicial de cobertura do coletor para 2020, início da série do Novo CAGED (o valor anterior correspondia ao CAGED antigo, de layout diferente).
@@ -141,6 +141,29 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - Rotas do CEMPRE são somente leitura: o dado é oficial e apenas o service grava no banco.
 - Agendamentos de fontes com publicação esparsa usam data fixa no calendário, e não intervalo, porque o intervalo recomeça a cada reinício do servidor.
 
+## Sessão 10 (20/10/2026 – 10/11/2026) — Integração da RFB (CNPJ)
+
+### Concluído
+
+- Integração da base de CNPJ da Receita Federal como terceira fonte de dados, no mesmo servidor do CAGED e do CEMPRE.
+- Coleta via WebDAV do servidor de arquivos da RFB, com descoberta automática da competência mais recente (`PROPFIND`).
+- Leitura dos arquivos Estabelecimentos, Empresas e Simples em blocos, filtrando Joinville (código RFB `8179`) sem carregar os arquivos inteiros na memória.
+- Download com retry e timeout, validação de tamanho e assinatura do zip antes da leitura, e pasta temporária apagada ao final de cada execução.
+- Transformer com mapa divisão da CNAE → seção, usando os mesmos nomes de setor do CEMPRE, e agregação em ativas, aberturas, encerramentos, ativas MEI e ativas Simples.
+- Tabela `rfb_empresas` criada via Alembic, com chave única competência + setor.
+- Repositório próprio (`repositorio_rfb.py`) com upsert idempotente e checagem de competência já processada.
+- Service de atualização com competências e flag `--forcar` pela linha de comando.
+- Router somente leitura em `/rfb` (listagem com filtros, resumo com competências disponíveis e busca por ID), com registro protegido no `app.py`.
+- Job mensal da RFB no scheduler (`cron`, dia 15 às 4h), com tratamento de erro próprio e `max_instances=1`.
+- Documentação da fonte em `docs/RFB_API.md`.
+
+### Decisões arquitetônicas
+
+- A RFB é gravada agregada por competência + setor, e não empresa por empresa: mantém o padrão do projeto e evita armazenar dados pessoais.
+- O arquivo de sócios não é baixado, por risco de LGPD e por não agregar ao objetivo do projeto.
+- As colunas numéricas da RFB são `NOT NULL` com padrão 0: a contagem é feita pelo próprio projeto, então não existe valor sigiloso ou indisponível.
+- Competências já processadas são puladas, para não baixar vários GB sem necessidade.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -154,6 +177,9 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [x] Concluir a integração prática com o IBGE (CEMPRE).
 - [x] Disponibilizar o CEMPRE na API (`/cempre`).
 - [x] Agendar a atualização automática do CEMPRE.
+- [x] Concluir a integração prática com a RFB (CNPJ).
+- [x] Disponibilizar a RFB na API (`/rfb`).
+- [x] Agendar a atualização automática da RFB.
 - [ ] Revisar configurações da aplicação.
 
 ---
@@ -165,7 +191,10 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Revisar desempenho das consultas.
 - [ ] Revisar tratamento de exceções da API.
 - [ ] Avaliar a carga dos anos do CEMPRE anteriores a 2022 (outras tabelas do SIDRA, possível mudança de metodologia).
-- [ ] Separar `models.py` por fonte de dados (`models_caged.py` / `models_cempre.py`).
+- [ ] Separar `models.py` por fonte de dados (`models_caged.py` / `models_cempre.py` / `models_rfb.py`).
+- [ ] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
+- [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução (aberturas do mês mais recente vêm subestimadas).
+- [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um único arquivo mensal.
 - [ ] Criar migração para o índice `ix_caged_movimentacao_id`, que existe no model mas não no banco.
 
 ---
@@ -184,6 +213,7 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Planejar Deploy.
 - [ ] Avaliar troca de `httpx` por `httpx2` (aviso de depreciação do Starlette nos testes).
 - [ ] Adicionar teste para a leitura dos anos pela linha de comando no service do CEMPRE.
+- [ ] Criar testes do transformer e do router da RFB (`test_transformer_rfb.py`, `test_rfb_router.py`), com CSV pequeno de exemplo.
 
 ---
 
@@ -198,3 +228,4 @@ Construir um ecossistema de engenharia de software que represente um sistema pro
 | 20/07/2026 | v0.1 | Conclusão da primeira auditoria arquitetônica. |
 | 04/08/2026 | v0.2 | Coleta oficial do Novo CAGED implementada e validada com dados reais. |
 | 15/10/2026 | v0.3 | Integração do CEMPRE (IBGE) como segunda fonte de dados, isolada do CAGED. |
+| 10/11/2026 | v0.4 | Integração da RFB (CNPJ da Receita Federal) como terceira fonte de dados, isolada do CAGED e do CEMPRE. |
