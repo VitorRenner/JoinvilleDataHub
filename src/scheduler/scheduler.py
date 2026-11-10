@@ -53,6 +53,25 @@ def _job_cempre() -> None:
         )
 
 
+def _job_rfb() -> None:
+    """
+    Executa a atualização da Receita Federal Brasileira (RFB), de maneira isolada.
+
+    Mesmo molde do CAGED e CEMPRE: o import fica aqui dentro para que um erro no código da RFB não impeça
+    o scheduler, e os outros jobs, de subir. Assim o erro é registrado no log e não é relançado.
+    """
+
+    try:
+        from src.services.atualizacao_rfb import atualizar_rfb
+
+        atualizar_rfb()
+
+    except Exception:
+        logger.exception(
+            "Falha na atualização automática da RFB.",
+        )
+
+
 def iniciar_scheduler() -> None:
     """
     Inicia o scheduler caso ele ainda não esteja rodando.
@@ -87,14 +106,30 @@ def iniciar_scheduler() -> None:
             replace_existing=True,
         )
 
+        # max_instances=1: o download da RFB tem vários GB e pode levar horas;
+        # impede que uma nova execução comece enquanto a anterior ainda roda.
+        scheduler.add_job(
+            _job_rfb,
+            trigger="cron",
+            day=settings.SCHEDULER_RFB_DIA,
+            hour=settings.SCHEDULER_RFB_HORA,
+            id="atualizacao_rfb",
+            name="Atualização automática da RFB",
+            max_instances=1,
+            replace_existing=True,
+        )
+
         scheduler.start()
 
         logger.info(
             "Scheduler iniciado (horário de Brasília). CAGED todo dia às %sh; "
-            "CEMPRE todo dia %s do mês, às %sh.",
+            "CEMPRE todo dia %s do mês, às %sh; "
+            "RFB todo dia %s do mês, às %sh.",
             settings.SCHEDULER_CAGED_HORA,
             settings.SCHEDULER_CEMPRE_DIA,
             settings.SCHEDULER_CEMPRE_HORA,
+            settings.SCHEDULER_RFB_DIA,
+            settings.SCHEDULER_RFB_HORA,
         )
 
     except Exception:

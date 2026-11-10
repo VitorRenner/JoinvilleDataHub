@@ -57,6 +57,11 @@ COLUNAS_SIMPLES = {
     4: "opcao_mei",
 }
 
+
+class DownloadInvalido(Exception):
+    """O servidor respondeu com sucesso, mas o arquivo baixado não é um zip válido."""
+
+
 # ─────────────── Collector ───────────────
 
 class RfbCollector(BaseCollector):
@@ -100,7 +105,7 @@ class RfbCollector(BaseCollector):
 
     def baixar(self, competencia: str, nome_arquivo: str) -> Path:
 
-        """Baixa um zip em streaming, com retry. Devolve o caminho no disco."""
+        """Baixa um zip em streaming, com retry e validação. Devolve o caminho no disco."""
 
         url = f"{self.base_url}/{competencia}/{nome_arquivo}"
         PASTA_TEMP.mkdir(parents=True, exist_ok=True)
@@ -118,6 +123,14 @@ class RfbCollector(BaseCollector):
                         timeout=settings.RFB_TIMEOUT_SEGUNDOS,
                 ) as resposta:
                     resposta.raise_for_status()
+
+                    tipo_conteudo = resposta.headers.get("Content-Type", "desconhecido")
+                    tamanho_esperado = int(resposta.headers.get("Content-Length", 0))
+                    if resposta.headers.get("Content-Encoding"):
+                        tamanho_esperado = 0
+                    # Com Content-Encoding (ex.: gzip), o tamanho anunciado é o
+                    # comprimido e não bate com o gravado; nesse caso não compara.
+
                     with open(destino, "wb") as arquivo:
                         for pedaco in resposta.iter_content(chunk_size=TAMANHO_PEDACO_DOWNLOAD):
                             arquivo.write(pedaco)
@@ -126,10 +139,31 @@ class RfbCollector(BaseCollector):
                 # sem isso, os vários GB iriam inteiros para a memória.
                 # raise_for_status evita salvar uma página de erro como se fosse o zip.
 
-                logger.info("Download concluído: %s", destino)
+                tamanho_baixado = destino.stat().st_size
+
+                if tamanho_esperado and tamanho_baixado != tamanho_esperado:
+                    raise DownloadInvalido(
+                        f"download incompleto: {tamanho_baixado} de "
+                        f"{tamanho_esperado} bytes"
+                    )
+
+                if not zipfile.is_zipfile(destino):
+                    raise DownloadInvalido(
+                        f"arquivo não é zip ({tamanho_baixado} bytes, "
+                        f"Content-Type: {tipo_conteudo})"
+                    )
+
+                # O servidor da Receita pode cortar a conexão no meio ou responder
+                # 200 com uma página de erro. Nos dois casos não há exceção de rede,
+                # então tamanho e assinatura do zip são conferidos aqui.
+
+                logger.info(
+                    "Download concluído: %s (%.0f MB)",
+                    destino, tamanho_baixado / (1024 * 1024),
+                )
                 return destino
 
-            except requests.RequestException as erro:
+            except (requests.RequestException, DownloadInvalido) as erro:
                 destino.unlink(missing_ok=True)
 
                 # Um zip baixado pela metade parece válido, por isso é apagado.
