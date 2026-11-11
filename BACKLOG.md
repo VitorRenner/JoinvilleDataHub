@@ -164,6 +164,27 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - As colunas numéricas da RFB são `NOT NULL` com padrão 0: a contagem é feita pelo próprio projeto, então não existe valor sigiloso ou indisponível.
 - Competências já processadas são puladas, para não baixar vários GB sem necessidade.
 
+## Sessão 11 (11/11/2026) — Validação ponta a ponta da v0.4
+
+### Concluído
+
+- Execução da suíte de testes automáticos (`uv run pytest -q`): 18 testes passando.
+- Teste manual da API pelo Swagger (`/docs`) com o PostgreSQL local: `/health` respondendo 200 com o banco conectado e as quatro rotas (`/caged`, `/ibge`, `/cempre`, `/rfb`) registradas.
+- Validação do CAGED (`/caged/stats/resumo`): 118 registros no banco.
+- Validação do CEMPRE (`/cempre/stats/resumo` e `/cempre/`): 66 registros (3 anos x 22 linhas); filtro por `ano` funcionando; `incluir_total=false` removendo a linha "Total"; soma dos setores de 2022 igual à linha "Total" (44.425 unidades locais).
+- Primeira carga real da RFB no banco local (competência 2026-10), em cerca de 92 minutos: 302.338 estabelecimentos de Joinville filtrados dos arquivos nacionais, 293.558 CNPJs básicos, todos encontrados no arquivo Empresas, e 225.457 registros no Simples.
+- Retry do download validado na prática: a conexão com a RFB caiu na primeira tentativa do `Estabelecimentos0.zip` e a segunda tentativa concluiu o arquivo.
+- Pasta temporária `data/rfb_temp` apagada ao final da execução, como planejado.
+- Validação da RFB na API (`/rfb/stats/resumo` e `/rfb/`): 21 registros (20 setores + Total); soma dos setores igual à linha "Total" em todas as colunas (134.732 ativas, 781 aberturas, 478 encerramentos, 68.936 MEI, 35.702 Simples).
+- Conferência de coerência dos dados: setores K (financeiro) e L (imobiliário) sem MEI, o que está de acordo com a legislação do MEI; setor U ausente por não ter empresas em Joinville.
+
+### Problemas encontrados
+
+- O retry do download da RFB recomeça o arquivo do zero quando a conexão cai (cerca de 8 minutos perdidos no `Estabelecimentos0.zip`, de 2,2 GB).
+- O `criado_em` dos registros da RFB marca o início da execução (14:00) e não o momento da gravação (15:32): a sessão do banco fica com uma transação aberta durante todo o download.
+- O router `/ibge` é um placeholder: `/ibge/municipios` devolve Joinville fixo no código e `/ibge/` responde "Em desenvolvimento". Os dados reais do IBGE entram pelo CEMPRE.
+- Na listagem do CEMPRE, a linha "Total" aparece entre os setores T e U, por causa da ordenação alfabética.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -196,6 +217,7 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução (aberturas do mês mais recente vêm subestimadas).
 - [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um único arquivo mensal.
 - [ ] Criar migração para o índice `ix_caged_movimentacao_id`, que existe no model mas não no banco.
+- [ ] Fazer o retry do download da RFB continuar de onde parou (cabeçalho HTTP `Range`), em vez de recomeçar o arquivo do zero.
 
 ---
 
@@ -214,6 +236,10 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Avaliar troca de `httpx` por `httpx2` (aviso de depreciação do Starlette nos testes).
 - [ ] Adicionar teste para a leitura dos anos pela linha de comando no service do CEMPRE.
 - [ ] Criar testes do transformer e do router da RFB (`test_transformer_rfb.py`, `test_rfb_router.py`), com CSV pequeno de exemplo.
+- [ ] Abrir a sessão do banco no service da RFB só na hora de gravar, para não manter uma transação aberta durante o download.
+- [ ] Implementar o router `/ibge` de verdade ou removê-lo (hoje devolve Joinville fixo no código).
+- [ ] Ordenar a listagem do CEMPRE com a linha "Total" sempre no fim.
+- [ ] Trocar `datetime.utcfromtimestamp()` em `src/core/logging.py` por `datetime.fromtimestamp(..., datetime.UTC)` (aviso de depreciação nos testes).
 
 ---
 
@@ -229,3 +255,4 @@ Construir um ecossistema de engenharia de software que represente um sistema pro
 | 04/08/2026 | v0.2 | Coleta oficial do Novo CAGED implementada e validada com dados reais. |
 | 15/10/2026 | v0.3 | Integração do CEMPRE (IBGE) como segunda fonte de dados, isolada do CAGED. |
 | 10/11/2026 | v0.4 | Integração da RFB (CNPJ da Receita Federal) como terceira fonte de dados, isolada do CAGED e do CEMPRE. |
+| 11/11/2026 | v0.4.1 | Validação ponta a ponta das três fontes (CAGED, CEMPRE e RFB) com dados reais, incluindo a primeira carga da RFB. |
