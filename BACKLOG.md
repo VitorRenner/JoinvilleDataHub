@@ -184,6 +184,30 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - O `criado_em` dos registros da RFB marca o início da execução (14:00) e não o momento da gravação (15:32): a sessão do banco fica com uma transação aberta durante todo o download.
 - O router `/ibge` é um placeholder: `/ibge/municipios` devolve Joinville fixo no código e `/ibge/` responde "Em desenvolvimento". Os dados reais do IBGE entram pelo CEMPRE.
 - Na listagem do CEMPRE, a linha "Total" aparece entre os setores T e U, por causa da ordenação alfabética.
+## Sessão 12 (12/11/2026) — Testes no Swagger e correção do CAGED
+
+### Concluído
+
+- Bateria de testes manuais no Swagger das três fontes:
+    - RFB: 8 de 8 cenários aprovados (`stats/resumo`, `incluir_total` false/true, filtro por setor, competência inválida → 422, `limit=0` barrado, id inexistente → 404, id 21 → linha "Total").
+    - CEMPRE: `stats/resumo` (66 registros), filtro por setor e id inexistente → 404.
+    - CAGED: `stats/resumo` e listagem.
+- Cruzamento RFB x CEMPRE na indústria: 13.318 ativas na RFB, sendo 8.518 MEI; sem MEI restam cerca de 4.800, próximo das 3.847 unidades locais do CEMPRE 2024 (as duas fontes são coerentes).
+- Correção do bug de sobrescrita do CAGED (branch `fix/caged-sobrescrita-competencias`):
+    - Causa raiz: o collector agregava MOV + FOR + EXC pela `competênciamov`; declarações atrasadas de meses anteriores (FOR/EXC) viravam linhas desses meses, e o upsert (`ON CONFLICT DO UPDATE`) substituía os valores completos já gravados por valores parciais.
+    - Teste escrito antes da correção (`tests/test_collector_caged.py`), falhando (vermelho) e depois passando (verde).
+    - `_agregar_movimentacoes` passou a receber a competência e a descartar registros de outras competências.
+    - Backup da tabela em `caged_backup_20261112` (118 linhas) antes da limpeza.
+    - Recarga de 202605 (18 setores, 436 registros FOR/EXC descartados) e 202606 (19 setores, 370 descartados).
+    - Validação: 37 registros; indústria em 202605 com 3.724 admissões (antes 13); `admissoes − demissoes = saldo` em todas as linhas.
+- Suíte de testes: 20 testes passando.
+
+### Problemas encontrados
+
+- Registro de teste manual no CAGED (`setor = "TECNOLOGIA"`, competência 202608), removido na limpeza.
+- Listagens do CAGED e do CEMPRE sem `order_by` (os anos do CEMPRE vieram como 2024, 2022, 2023).
+- A rota `/caged` não valida o formato da competência (AAAAMM), diferente da `/rfb`, que devolve 422.
+- O `stats/resumo` do CAGED e do CEMPRE não lista as competências/anos disponíveis, diferente da RFB.
 
 ### Backlog Atual
 
@@ -218,7 +242,11 @@ O objetivo é organizar as funcionalidades, melhorias e decisões arquitetônica
 - [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um único arquivo mensal.
 - [ ] Criar migração para o índice `ix_caged_movimentacao_id`, que existe no model mas não no banco.
 - [ ] Fazer o retry do download da RFB continuar de onde parou (cabeçalho HTTP `Range`), em vez de recomeçar o arquivo do zero.
-
+- [ ] CAGED: tratar FOR/EXC nos meses de origem (somar FOR, descontar EXC) em vez de descartá-los.
+- [ ] Adicionar `order_by` nas listagens do CAGED (competência, setor) e do CEMPRE (ano, setor).
+- [ ] Validar o formato da competência na rota `/caged` (hoje aceita qualquer texto).
+- [ ] Padronizar o `stats/resumo` das três fontes (listar competências/anos disponíveis).
+- [ ] Apagar a tabela `caged_backup_20261112` após uma semana sem problemas.
 ---
 
 ## Prioridade P2
@@ -256,3 +284,4 @@ Construir um ecossistema de engenharia de software que represente um sistema pro
 | 15/10/2026 | v0.3 | Integração do CEMPRE (IBGE) como segunda fonte de dados, isolada do CAGED. |
 | 10/11/2026 | v0.4 | Integração da RFB (CNPJ da Receita Federal) como terceira fonte de dados, isolada do CAGED e do CEMPRE. |
 | 11/11/2026 | v0.4.1 | Validação ponta a ponta das três fontes (CAGED, CEMPRE e RFB) com dados reais, incluindo a primeira carga da RFB. |
+| 12/11/2026 | v0.4.2 | Correção do CAGED: declarações FOR/EXC sobrescreviam meses já carregados; recarga de 202605 e 202606 e testes do collector. |

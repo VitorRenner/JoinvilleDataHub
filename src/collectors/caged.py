@@ -271,11 +271,12 @@ class CagedCollector(BaseCollector):
             len(dados_joinville),
         )
 
-        return self._agregar_movimentacoes(dados_joinville)
+        return self._agregar_movimentacoes(dados_joinville, competencia)
 
     @staticmethod
     def _agregar_movimentacoes(
         df: pd.DataFrame,
+        competencia: str,
     ) -> pd.DataFrame:
         """
         Agrega os registros individuais de movimentação (um por trabalhador)
@@ -299,6 +300,19 @@ class CagedCollector(BaseCollector):
                 "seção": "setor",
             }
         )
+
+        # Os arquivos FOR (declarações fora do prazo) e EXC (exclusões) trazem
+        # movimentações de competências anteriores. Como o upsert substitui a
+        # linha existente (competencia, setor), mantê-las sobrescreveria meses
+        # já carregados com valores parciais. Mantém só a competência do arquivo.
+        total_antes = len(df)
+        df = df[df["competencia"].astype(str) == competencia]
+        descartados = total_antes - len(df)
+        if descartados:
+            logger.info(
+                "%d registros de outras competências (FOR/EXC) descartados.",
+                descartados,
+            )
 
         df["saldomovimentação"] = (
             pd.to_numeric(
