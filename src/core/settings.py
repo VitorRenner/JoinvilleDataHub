@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     "Configurações globais da aplicação."
 
@@ -22,12 +23,14 @@ class Settings(BaseSettings):
     SCHEDULER_CEMPRE_DIA: int = 1
     SCHEDULER_CEMPRE_HORA: int = 3
 
-    # ------------------------- RFB (Receita Federal Brasileira ) --------------------------------------
+    # -------------------- RFB (Receita Federal Brasileira) --------------------
     # Movido para esta seção
-    # (antes estava fora do padrão da classe -> settings.RFB ... resultava em erro AttributeError).
+    # (antes estava fora do padrão da classe -> settings.RFB ... resultava em
+    # erro AttributeError).
 
     RFB_BASE_URL: str = "https://arquivos.receitafederal.gov.br"
-    #URL confirmada no Google Chrome, entra listando os arquivos do site da Receita Federal Brasileira
+    # URL confirmada no Google Chrome, entra listando os arquivos do site da
+    # Receita Federal Brasileira
     # (RFB), com pastas mensais.
 
     #Ela (RFB) lista as pastas com AAAA-MM
@@ -49,7 +52,8 @@ class Settings(BaseSettings):
     RFB_TIMEOUT_SEGUNDOS: int = 300
     RFB_TENTATIVAS: int = 3
 
-    # Como o servidor da Receita Federal Brasileira é lento e cai, deixamos como 3 com um valor generoso.
+    # Como o servidor da Receita Federal Brasileira é lento e cai, deixamos
+    # como 3 com um valor generoso.
 
     RFB_TAMANHO_BLOCO: int = 500_000
     # Quantas linhas do CSV o pandas lê por vez.
@@ -60,7 +64,7 @@ class Settings(BaseSettings):
     SCHEDULER_RFB_DIA: int = 15
     SCHEDULER_RFB_HORA: int = 4
 
-    #--------------------------------------------------------------------------------- fim do bloco
+    # ------------------------------ fim do bloco RFB ------------------------------
 
     DEBUG: bool = False
     model_config = SettingsConfigDict(

@@ -1,22 +1,21 @@
 """
 Transformer da Receita Federal Brasileira(RFB).
 
-Recebe as tabelas juntas de Joinville do collector (Estabelecimentos, Empresas e Simples), junta pelo
+Recebe as tabelas juntas de Joinville do collector (Estabelecimentos,
+Empresas e Simples), junta pelo
 cnpj_basico e agrega por seção da CNAE 2.0.
 Nenhum dado de empresa individual sai daqui: só contagem por setor,
 """
 
 import logging
-
 import re
-
 from typing import TypedDict
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-#----------------------------------- Constantes -----------------------------------------
+# ------------------------------- Constantes -------------------------------
 
 SITUACAO_ATIVA = "02"
 SITUACAO_BAIXADA = "08"
@@ -99,7 +98,8 @@ def transformar_rfb(
         .merge(simples, on="cnpj_basico", how="left")
     )
     # how="left": mantém todo estabelecimento, mesmo sem par em Empresas ou Simples.
-    # O collector já removeu cnpj_basico duplicado, então a junção não multiplica linhas.
+    # O collector já removeu cnpj_basico duplicado, então a junção não
+    # multiplica linhas.
 
     divisao = df["cnae_fiscal_principal"].fillna("").str.strip().str[:2]
     df["setor"] = divisao.map(MAPA_DIVISAO_SECAO).fillna(SETOR_NAO_CLASSIFICADO)
@@ -121,10 +121,15 @@ def transformar_rfb(
 
     df["ativas"] = situacao == SITUACAO_ATIVA
     df["aberturas"] = data_inicio.str.startswith(mes)
-    df["encerramentos"] = (situacao == SITUACAO_BAIXADA) & data_situacao.str.startswith(mes)
+    df["encerramentos"] = (situacao == SITUACAO_BAIXADA) & (
+        data_situacao.str.startswith(mes)
+    )
     df["ativas_mei"] = df["ativas"] & (df["opcao_mei"] == "S")
-    df["ativas_simples"] = df["ativas"] & (df["opcao_simples"] == "S") & ~df["ativas_mei"]
-    # Todo MEI também é optante do Simples; ~ativas_mei evita contar a mesma empresa duas vezes.
+    df["ativas_simples"] = (
+        df["ativas"] & (df["opcao_simples"] == "S") & ~df["ativas_mei"]
+    )
+    # Todo MEI também é optante do Simples; ~ativas_mei evita contar a mesma
+    # empresa duas vezes.
 
     por_setor = df.groupby("setor")[list(CONTAGENS)].sum()
     # Soma de colunas booleanas = quantidade de True.
@@ -173,7 +178,9 @@ def validar_dados(
             elif valor < 0:
                 erros.append(f"{campo} não pode ser negativo.")
 
-        if not erros and registro["ativas_mei"] + registro["ativas_simples"] > registro["ativas"]:
+        if not erros and (
+            registro["ativas_mei"] + registro["ativas_simples"] > registro["ativas"]
+        ):
             erros.append("ativas_mei + ativas_simples não pode ser maior que ativas.")
         # Só checa a soma se os campos já passaram nas validações de tipo.
 

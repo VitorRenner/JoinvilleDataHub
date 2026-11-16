@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from src.api.routers import caged, ibge
-from src.database.conexao import engine
 from src.core.logging import configurar_logging
+from src.database.conexao import engine
 
 API_TITLE = "CAGED API - Joinville"
 API_DESCRIPTION = "API para dados de emprego e desemprego de Joinville/SC"
