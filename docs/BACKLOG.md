@@ -311,6 +311,9 @@ de software.
 - Validação: 20 testes passando, Black e Ruff sem erros na pasta nova e `alembic
   check` sem diferença nas três tabelas.
 - README atualizado com a RFB, o CI e a nova estrutura.
+- Avisos do Ruff zerados (76 → 0): migrações fora do lint, imports
+  arrumados e 34 linhas longas quebradas.
+- Lint do Ruff passou a ser obrigatório no CI (sem `continue-on-error`).
 
 ### Problemas encontrados
 
@@ -349,8 +352,8 @@ de software.
       SIDRA, possível mudança de metodologia).
 - [x] Separar `models.py` por fonte de dados (`src/database/models/`:
       `caged.py`, `cempre.py`, `rfb.py`).
-- [ ] Zerar os avisos do Ruff (76 em 16/11/2026: 35 nas migrações, 34 `E501`, 7
-      de imports).
+- [x] Zerar os avisos do Ruff (76 → 0 em 16/11/2026) e tornar o lint
+      obrigatório no CI.
 - [ ] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
 - [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução
       (aberturas do mês mais recente vêm subestimadas).
@@ -418,3 +421,4 @@ e internacionais.
 | 11/11/2026 | v0.4.1 | Validação ponta a ponta das três fontes (CAGED, CEMPRE e RFB) com dados reais, incluindo a primeira carga da RFB. |
 | 12/11/2026 | v0.4.2 | Correção do CAGED: declarações FOR/EXC sobrescreviam meses já carregados; recarga de 202605 e 202606 e testes do collector. |
 | 16/11/2026 | v0.4.3 | Models separados por fonte (`src/database/models/`) e README atualizado. |
+| 16/11/2026 | v0.4.4 | Avisos do Ruff zerados e lint obrigatório no CI. |
