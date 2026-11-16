@@ -137,8 +137,8 @@ uv run pytest -q
 ```
 
 Os testes cobrem as rotas do CAGED e do CEMPRE, o collector do CAGED, o
-health check e o transformer do CEMPRE. O GitHub Actions roda os testes a
-cada push e pull request no `master`.
+health check e o transformer do CEMPRE. O GitHub Actions roda o Ruff e os
+testes a cada push e pull request no `master`; com aviso do Ruff, o CI falha.
 
 ## Estrutura
 
@@ -154,13 +154,12 @@ src/
 └── core/           # configurações e logging
 alembic/            # migrations do banco
 tests/              # testes com pytest
-docs/               # documentação de cada integração
+docs/               # integrações, como rodar, backlog e histórico
 ```
 
 ## Próximos passos
 
 - [ ] Testes do transformer e do router da RFB
-- [ ] Zerar os avisos do Ruff e tornar o lint obrigatório no CI
 - [ ] Deploy público com link
 
 ## Documentação
