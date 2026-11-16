@@ -1,16 +1,22 @@
 # 📋 Documentação — Nova Fonte de Dados: RFB (Receita Federal / CNPJ)
 
-> Este documento explica o que é a base de CNPJ da Receita Federal, por que ela foi integrada a este servidor, como o dado flui dentro da arquitetura e quais decisões técnicas foram tomadas na implementação.
+> Este documento explica o que é a base de CNPJ da Receita Federal, por que ela
+> foi integrada a este servidor, como o dado flui dentro da arquitetura e quais
+> decisões técnicas foram tomadas na implementação.
 
-**Status:** ✅ implementado (coleta, transformação, banco, API e agendamento) · ⏳ testes automatizados pendentes.
+**Status:** ✅ implementado (coleta, transformação, banco, API e agendamento) · ⏳
+testes automatizados pendentes.
 
 ---
 
 ## 🧭 O que é a RFB (dados abertos do CNPJ)
 
-A Receita Federal publica, **todo mês**, o cadastro completo de todas as empresas do Brasil: situação cadastral (ativa, baixada etc.), data de abertura, atividade principal (CNAE), porte e opção pelo Simples Nacional / MEI.
+A Receita Federal publica, **todo mês**, o cadastro completo de todas as
+empresas do Brasil: situação cadastral (ativa, baixada etc.), data de abertura,
+atividade principal (CNAE), porte e opção pelo Simples Nacional / MEI.
 
-Ela entra como **terceira fonte de dados**, ao lado do CAGED e do CEMPRE, dentro do mesmo servidor.
+Ela entra como **terceira fonte de dados**, ao lado do CAGED e do CEMPRE, dentro
+do mesmo servidor.
 
 ---
 
@@ -22,7 +28,9 @@ Ela entra como **terceira fonte de dados**, ao lado do CAGED e do CEMPRE, dentro
 | **Frequência** | Mensal | Anual | Mensal |
 | **Unidade** | Pessoas | Unidades locais e pessoas | Estabelecimentos (CNPJ) |
 
-➡️ O CAGED fala de **pessoas** se movendo, o CEMPRE do **tamanho** de cada setor, a RFB das **empresas** nascendo e fechando. Como as três usam as seções da CNAE 2.0, dá para cruzar os setores entre elas.
+➡️ O CAGED fala de **pessoas** se movendo, o CEMPRE do **tamanho** de cada
+setor, a RFB das **empresas** nascendo e fechando. Como as três usam as seções
+da CNAE 2.0, dá para cruzar os setores entre elas.
 
 ---
 
@@ -36,10 +44,15 @@ Ela entra como **terceira fonte de dados**, ao lado do CAGED e do CEMPRE, dentro
 
 Consequências no projeto:
 
-1. 💾 **Leitura em blocos** (`RFB_TAMANHO_BLOCO`): o arquivo nunca é carregado inteiro na memória; cada bloco é filtrado e só as linhas de Joinville ficam.
-2. 🗑️ **Pasta temporária** (`../data/rfb_temp`, fora do Git): os zips são baixados ali e apagados ao final do processamento, com sucesso ou com erro.
-3. 🔁 **Download com retry e timeout** (`RFB_TENTATIVAS`, `RFB_TIMEOUT_SEGUNDOS`): o servidor da Receita é lento e instável.
-4. 🧾 **Zip validado antes da leitura**: tamanho e assinatura do arquivo são conferidos, para não processar um download corrompido ou uma página de erro salva como `.zip`.
+1. 💾 **Leitura em blocos** (`RFB_TAMANHO_BLOCO`): o arquivo nunca é carregado
+   inteiro na memória; cada bloco é filtrado e só as linhas de Joinville ficam.
+2. 🗑️ **Pasta temporária** (`../data/rfb_temp`, fora do Git): os zips são
+   baixados ali e apagados ao final do processamento, com sucesso ou com erro.
+3. 🔁 **Download com retry e timeout** (`RFB_TENTATIVAS`,
+   `RFB_TIMEOUT_SEGUNDOS`): o servidor da Receita é lento e instável.
+4. 🧾 **Zip validado antes da leitura**: tamanho e assinatura do arquivo são
+   conferidos, para não processar um download corrompido ou uma página de erro
+   salva como `.zip`.
 5. ⏭️ **Competência já processada é pulada**: evita baixar GBs à toa.
 
 ---
@@ -69,7 +82,7 @@ Consequências no projeto:
 | 🤖 Coleta | `../src/collectors/rfb.py` | 🆕 novo | Lista as competências via WebDAV, baixa e lê os zips em blocos, filtra Joinville |
 | 🔄 Transformação | `../src/transformers/rfb.py` | 🆕 novo | Junta as 3 bases, mapeia CNAE → seção, agrega e valida |
 | 📐 Contrato de dados | `../src/schemas/rfb.py` | 🆕 novo | Formato dos dados (Pydantic) |
-| 🗄️ Modelo do banco | `../src/database/models.py` | ✏️ editado | Adiciona a tabela `RfbEmpresa` |
+| 🗄️ Modelo do banco | `../src/database/models/rfb.py` | ✏️ editado | Adiciona a tabela `RfbEmpresa` |
 | 📦 Acesso ao banco | `../src/database/repositorio_rfb.py` | 🆕 novo | Busca, contagem, upsert, lista de competências e checagem de competência processada |
 | ⚙️ Orquestração | `../src/services/atualizacao_rfb.py` | 🆕 novo | Coleta → transformação → validação → gravação → limpeza dos temporários |
 | 🚪 Endpoints | `../src/api/routers/rfb.py` | 🆕 novo | Rota `/rfb` somente leitura |
@@ -79,15 +92,19 @@ Consequências no projeto:
 | 🧱 Migração | `../alembic/versions/3101cdc26c6d_cria_tabela_rfb_empresas.py` | 🆕 novo | Cria a tabela `rfb_empresas` |
 | 🙈 Git | `../.gitignore` | ✏️ editado | Ignora `../data/rfb_temp` |
 
-**Legenda:** 🆕 arquivo novo · ✏️ arquivo já existente, só ganhou um trecho a mais.
+**Legenda:** 🆕 arquivo novo · ✏️ arquivo já existente, só ganhou um trecho a
+mais.
 
 ---
 
 ## 🧩 Fonte de dados
 
-- 🌐 **Servidor:** `arquivos.receitafederal.gov.br`, acessado via **WebDAV** (`/public.php/webdav`), com uma pasta por mês no formato `AAAA-MM`
-- 🔎 **Descoberta do mês mais recente:** comando `PROPFIND` (lista a pasta; o sucesso vem como `207 Multi-Status`, não `200`)
-- 📍 **Código do município:** `8179` (Joinville na tabela da RFB, herdada do SIAFI) — **não é** o código do IBGE (`4209102`)
+- 🌐 **Servidor:** `arquivos.receitafederal.gov.br`, acessado via **WebDAV**
+  (`/public.php/webdav`), com uma pasta por mês no formato `AAAA-MM`
+- 🔎 **Descoberta do mês mais recente:** comando `PROPFIND` (lista a pasta; o
+  sucesso vem como `207 Multi-Status`, não `200`)
+- 📍 **Código do município:** `8179` (Joinville na tabela da RFB, herdada do
+  SIAFI) — **não é** o código do IBGE (`4209102`)
 
 | Arquivo | Usado? | Para quê |
 |---|---|---|
@@ -104,9 +121,12 @@ Consequências no projeto:
 3. Simples          → mantém só quem está nesse conjunto
 ```
 
-Se Joinville não tiver nenhum CNPJ na competência, Empresas e Simples não são baixados.
+Se Joinville não tiver nenhum CNPJ na competência, Empresas e Simples não são
+baixados.
 
-**Por que tudo é lido como texto:** o `cnpj_basico` tem zeros à esquerda (`00012345`). Lido como número, viraria `12345` e o cruzamento entre os arquivos quebraria sem erro.
+**Por que tudo é lido como texto:** o `cnpj_basico` tem zeros à esquerda
+(`00012345`). Lido como número, viraria `12345` e o cruzamento entre os arquivos
+quebraria sem erro.
 
 ---
 
@@ -120,29 +140,38 @@ Se Joinville não tiver nenhum CNPJ na competência, Empresas e Simples não sã
 | `ativas_mei` | Ativas com opção pelo MEI |
 | `ativas_simples` | Ativas no Simples Nacional, sem contar MEI |
 
-**CNAE → seção:** os 2 primeiros dígitos da CNAE (a divisão) indicam a seção. Os nomes das seções são **os mesmos do CEMPRE**, para permitir o cruzamento. CNAE fora do mapa entra como `Não classificado`.
+**CNAE → seção:** os 2 primeiros dígitos da CNAE (a divisão) indicam a seção. Os
+nomes das seções são **os mesmos do CEMPRE**, para permitir o cruzamento. CNAE
+fora do mapa entra como `Não classificado`.
 
 ---
 
 ## 🗄️ Tabela `rfb_empresas`
 
-- **Granularidade:** números agregados por **competência + setor** — nenhum dado de empresa individual é gravado.
-- **Chave única:** `competencia + setor` (`uq_competencia_setor_rfb`) → upsert idempotente.
-- **Colunas numéricas `NOT NULL`, padrão `0`:** diferente do IBGE, aqui não existe valor sigiloso ou indisponível; a contagem é feita pelo próprio projeto, então ausência de empresas é zero de verdade.
+- **Granularidade:** números agregados por **competência + setor** — nenhum dado
+  de empresa individual é gravado.
+- **Chave única:** `competencia + setor` (`uq_competencia_setor_rfb`) → upsert
+  idempotente.
+- **Colunas numéricas `NOT NULL`, padrão `0`:** diferente do IBGE, aqui não
+  existe valor sigiloso ou indisponível; a contagem é feita pelo próprio
+  projeto, então ausência de empresas é zero de verdade.
 
 ---
 
 ## ➕ A linha "Total"
 
-Assim como no CEMPRE, cada competência ganha uma linha **"Total"** (soma de todos os setores).
+Assim como no CEMPRE, cada competência ganha uma linha **"Total"** (soma de
+todos os setores).
 
-⚠️ **Cuidado ao somar:** somar todos os registros de uma competência conta tudo **em dobro**. Para somar ou comparar setores, use `incluir_total=false`.
+⚠️ **Cuidado ao somar:** somar todos os registros de uma competência conta tudo
+**em dobro**. Para somar ou comparar setores, use `incluir_total=false`.
 
 ---
 
 ## 🚪 Endpoints
 
-Todas as rotas são **somente leitura**: quem grava no banco é apenas o service de atualização.
+Todas as rotas são **somente leitura**: quem grava no banco é apenas o service
+de atualização.
 
 | Método | Rota | O que retorna |
 |---|---|---|
@@ -163,10 +192,14 @@ Todas as rotas são **somente leitura**: quem grava no banco é apenas o service
 
 ## ⏱️ Atualização automática
 
-- O job da RFB roda **todo dia 15 do mês, às 4h** (`SCHEDULER_RFB_DIA` e `SCHEDULER_RFB_HORA`), em horário diferente do CAGED e do CEMPRE.
-- **Data fixa (`cron`):** resiste a reinícios do servidor, mesmo motivo do CEMPRE.
-- **`max_instances=1`:** o download pode levar horas; impede que uma nova execução comece enquanto a anterior ainda roda.
-- **Se a Receita ainda não publicou o mês:** a competência mais recente já está no banco e o job pula; o mês novo entra na execução seguinte.
+- O job da RFB roda **todo dia 15 do mês, às 4h** (`SCHEDULER_RFB_DIA` e
+  `SCHEDULER_RFB_HORA`), em horário diferente do CAGED e do CEMPRE.
+- **Data fixa (`cron`):** resiste a reinícios do servidor, mesmo motivo do
+  CEMPRE.
+- **`max_instances=1`:** o download pode levar horas; impede que uma nova
+  execução comece enquanto a anterior ainda roda.
+- **Se a Receita ainda não publicou o mês:** a competência mais recente já está
+  no banco e o job pula; o mês novo entra na execução seguinte.
 
 ---
 
@@ -202,8 +235,13 @@ Rodar mais de uma vez não duplica dados (upsert por `competencia + setor`).
 
 ## 🔮 Pendências e próximos passos
 
-- 🧪 **Testes automatizados:** `tests/test_transformer_rfb.py` e `tests/test_rfb_router.py`, com CSV pequeno de exemplo (sem baixar da Receita).
-- 🔁 **Atraso do cadastro:** as aberturas do mês mais recente tendem a vir subestimadas; avaliar reprocessar as últimas 2–3 competências a cada execução.
-- 🕰️ **Série histórica de aberturas:** o arquivo de um único mês já traz a data de abertura de todas as empresas; dá para montar o histórico numa carga só.
+- 🧪 **Testes automatizados:** `tests/test_transformer_rfb.py` e
+  `tests/test_rfb_router.py`, com CSV pequeno de exemplo (sem baixar da
+  Receita).
+- 🔁 **Atraso do cadastro:** as aberturas do mês mais recente tendem a vir
+  subestimadas; avaliar reprocessar as últimas 2–3 competências a cada execução.
+- 🕰️ **Série histórica de aberturas:** o arquivo de um único mês já traz a data
+  de abertura de todas as empresas; dá para montar o histórico numa carga só.
 - 🔧 **`RFB_SHARE_TOKEN` no `../.env`:** hoje está fixo no `settings.py`.
-- 🗂️ **Separar `models.py` por fonte:** pendente desde o CEMPRE; com três fontes fica mais urgente.
+- ✅ **Separar `models.py` por fonte:** feito em 16/11/2026
+  (`src/database/models/`).
