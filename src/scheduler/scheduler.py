@@ -57,8 +57,9 @@ def _job_rfb() -> None:
     """
     Executa a atualização da Receita Federal Brasileira (RFB), de maneira isolada.
 
-    Mesmo molde do CAGED e CEMPRE: o import fica aqui dentro para que um erro no código da RFB não impeça
-    o scheduler, e os outros jobs, de subir. Assim o erro é registrado no log e não é relançado.
+    Mesmo molde do CAGED e CEMPRE: o import fica aqui dentro para que um erro
+    no código da RFB não impeça o scheduler, e os outros jobs, de subir. Assim
+    o erro é registrado no log e não é relançado.
     """
 
     try:

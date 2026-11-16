@@ -62,11 +62,13 @@ class CagedCollector(BaseCollector):
             except OSError as erro:
                 if tentativa == max_tentativas:
                     raise RuntimeError(
-                        f"Erro ao conectar ao FTP do CAGED após {max_tentativas} tentativas: {erro}"
+                        f"Erro ao conectar ao FTP do CAGED após "
+                        f"{max_tentativas} tentativas: {erro}"
                     ) from erro
                 wait = 2 ** tentativa
                 logger.warning(
-                    "Tentativa %d/%d de conexão FTP falhou: %s. Aguardando %ds para retry.",
+                    "Tentativa %d/%d de conexão FTP falhou: %s. "
+                    "Aguardando %ds para retry.",
                     tentativa,
                     max_tentativas,
                     erro,
@@ -181,11 +183,13 @@ class CagedCollector(BaseCollector):
                         except OSError as erro:
                             if tentativa == max_tentativas:
                                 raise RuntimeError(
-                                    f"Falha ao baixar {nome_arquivo} após {max_tentativas} tentativas: {erro}"
+                                    f"Falha ao baixar {nome_arquivo} após "
+                                    f"{max_tentativas} tentativas: {erro}"
                                 ) from erro
                             wait = 2 ** tentativa
                             logger.warning(
-                                "Tentativa %d/%d de download de %s falhou: %s. Aguardando %ds.",
+                                "Tentativa %d/%d de download de %s falhou: "
+                                "%s. Aguardando %ds.",
                                 tentativa,
                                 max_tentativas,
                                 nome_arquivo,

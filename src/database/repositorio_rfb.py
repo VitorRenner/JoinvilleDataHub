@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from src.database.models import RfbEmpresa
 from src.schemas.rfb import RfbCreate
 
-#Nome da linha que csoma todos os setores , gerada pelo transformer da Receita Federal Brasileira.
+# Nome da linha que soma todos os setores, gerada pelo transformer da
+# Receita Federal Brasileira.
 SETOR_TOTAL = "Total"
 
 def buscar_rfb(
@@ -20,7 +21,8 @@ def buscar_rfb(
     """
 Busca registros agregados da Receita Federal Brasileira com filtros opcionais.
 incluir_total=False exclui a linha "Total" ( que é a soma de todos os setores)
-Use False ao somar ou comparar setores, para não contar em dobro os setores selecionados.
+Use False ao somar ou comparar setores, para não contar em dobro os
+setores selecionados.
     """
     query = db.query(RfbEmpresa)
 
@@ -52,7 +54,8 @@ def buscar_por_id_rfb(
       )-> RfbEmpresa | None:
 
     """
-Busca um registro dentro dos dados da Receita Federal Brasileira (RFB) via identificador.
+Busca um registro dentro dos dados da Receita Federal Brasileira (RFB)
+via identificador.
     """
 
     return (
@@ -81,7 +84,8 @@ def competencia_ja_processada(
 
     """
 Indica caso já exista algum registro gravado para a competencia (AAAA-MM).
-Usado também pelo arquivo service para não baixar arquivos já processados de meses passados.
+Usado também pelo arquivo service para não baixar arquivos já processados
+de meses passados.
     """
 
     return (
@@ -99,7 +103,8 @@ def listar_competencias_rfb(
      ) ->  list[str]:
 
     """
-Retorna as competencias já disponíveis no banco, das mais antigas até as mais recentes.competencia
+Retorna as competências já disponíveis no banco, das mais antigas até as
+mais recentes.
     """
 
 
@@ -117,7 +122,8 @@ def upsert_rfb(
     registros: list[RfbCreate],
 ) -> int:
     """
-Efetua a criação de registros ou caso necessário, atualiza os existentes usando INSERT ... ON CONFLICT.
+Efetua a criação de registros ou, caso necessário, atualiza os existentes
+usando INSERT ... ON CONFLICT.
 A chave de conflito é ( competencia, setor).
     """
 

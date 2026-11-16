@@ -105,7 +105,10 @@ class RfbCollector(BaseCollector):
 
     def baixar(self, competencia: str, nome_arquivo: str) -> Path:
 
-        """Baixa um zip em streaming, com retry e validação. Devolve o caminho no disco."""
+        """
+        Baixa um zip em streaming, com retry e validação.
+        Devolve o caminho no disco.
+        """
 
         url = f"{self.base_url}/{competencia}/{nome_arquivo}"
         PASTA_TEMP.mkdir(parents=True, exist_ok=True)
@@ -132,7 +135,9 @@ class RfbCollector(BaseCollector):
                     # comprimido e não bate com o gravado; nesse caso não compara.
 
                     with open(destino, "wb") as arquivo:
-                        for pedaco in resposta.iter_content(chunk_size=TAMANHO_PEDACO_DOWNLOAD):
+                        for pedaco in resposta.iter_content(
+                            chunk_size=TAMANHO_PEDACO_DOWNLOAD
+                        ):
                             arquivo.write(pedaco)
 
                 # stream=True grava o arquivo no disco em pedaços de 1 MB;
@@ -206,8 +211,10 @@ class RfbCollector(BaseCollector):
                 # header=None: o CSV da RFB não tem cabeçalho.
                 # latin-1: a Receita usa ISO-8859-1; com utf-8 os acentos quebram.
                 # dtype=str: preserva os zeros à esquerda do cnpj_basico.
-                # usecols: lê só as colunas necessárias, os demais dados nem entram na memória.
-                # chunksize: entrega o arquivo em blocos, que são filtrados e descartados.
+                # usecols: lê só as colunas necessárias; os demais dados nem
+                # entram na memória.
+                # chunksize: entrega o arquivo em blocos, que são filtrados e
+                # descartados.
 
                 for bloco in leitor:
                     total_linhas += len(bloco)
@@ -246,9 +253,14 @@ class RfbCollector(BaseCollector):
 
         return pd.concat(partes, ignore_index=True)
 
-    def ler_estabelecimentos_joinville(self, competencia: str) -> tuple[pd.DataFrame, set[str]]:
+    def ler_estabelecimentos_joinville(
+        self, competencia: str
+    ) -> tuple[pd.DataFrame, set[str]]:
 
-        """Percorre Estabelecimentos 0 até o 9 e devolve (tabela, conjunto de cnpj_basico)."""
+        """
+        Percorre Estabelecimentos 0 até o 9 e devolve
+        (tabela, conjunto de cnpj_basico).
+        """
 
         def eh_joinville(bloco: pd.DataFrame) -> pd.Series:
             return bloco["municipio"] == settings.RFB_MUNICIPIO_JOINVILLE
@@ -260,7 +272,8 @@ class RfbCollector(BaseCollector):
         )
         estabelecimentos = estabelecimentos.drop(columns="municipio")
 
-        # Depois do filtro, todas as linhas são de Joinville: a coluna não informa mais nada.
+        # Depois do filtro, todas as linhas são de Joinville: a coluna não
+        # informa mais nada.
 
         conjunto_cnpj = set(estabelecimentos["cnpj_basico"])
 
@@ -281,7 +294,9 @@ class RfbCollector(BaseCollector):
 
         # Empresas não tem município: filtra pelo conjunto vindo do Estabelecimentos.
 
-        empresas = self._ler_partes("Empresas", competencia, COLUNAS_EMPRESAS, eh_de_joinville)
+        empresas = self._ler_partes(
+            "Empresas", competencia, COLUNAS_EMPRESAS, eh_de_joinville
+        )
 
         empresas = empresas.drop_duplicates(subset="cnpj_basico")
 
@@ -310,14 +325,18 @@ class RfbCollector(BaseCollector):
         logger.info("Joinville: %s registros encontrados em Simples", len(simples))
         return simples
 
-    def coletar(self, competencia: str | None = None) -> tuple[str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def coletar(
+        self, competencia: str | None = None
+    ) -> tuple[str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         """Junta tudo: devolve (competencia, estabelecimentos, empresas, simples)."""
 
         competencia = competencia or self.descobrir_competencia_mais_recente()
         logger.info("Iniciando coleta da RFB, competência %s", competencia)
 
-        estabelecimentos, conjunto_cnpj = self.ler_estabelecimentos_joinville(competencia)
+        estabelecimentos, conjunto_cnpj = self.ler_estabelecimentos_joinville(
+            competencia
+        )
 
         if not conjunto_cnpj:
             raise RuntimeError(

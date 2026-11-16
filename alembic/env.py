@@ -1,13 +1,12 @@
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-from src.core.settings import settings
-from src.database.conexao import Base
 
 # Importa os modelos para que o Alembic os registre no metadata.
 import src.database.models  # noqa: F401
+from alembic import context
+from src.core.settings import settings
+from src.database.conexao import Base
 
 # Configuração do Alembic.
 config = context.config

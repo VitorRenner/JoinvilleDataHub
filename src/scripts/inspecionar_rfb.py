@@ -10,7 +10,6 @@ serão reaproveitadas nele depois.
 
 import re
 import time
-import shutil
 import zipfile
 from pathlib import Path
 
@@ -18,7 +17,6 @@ import pandas as pd
 import requests
 
 from src.core.settings import settings
-
 
 # ─────────────── Constantes montadas a partir do settings ───────────────
 
