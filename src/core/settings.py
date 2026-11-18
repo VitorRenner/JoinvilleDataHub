@@ -37,7 +37,9 @@ class Settings(BaseSettings):
 
 
 
-    RFB_SHARE_TOKEN: str = "YggdBLfdninEJX9"
+    RFB_SHARE_TOKEN: str = ""
+    # Token do link público da RFB (vem do .env). Vazio por padrão para a API
+    # e o CI subirem sem ele; o collector da RFB recusa rodar se estiver vazio.
 
     RFB_WEBDAV_PATH: str = "/public.php/webdav"
 

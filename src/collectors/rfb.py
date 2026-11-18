@@ -68,6 +68,11 @@ class RfbCollector(BaseCollector):
 
     def __init__(self, session: requests.Session | None = None) -> None:
         super().__init__(base_url=WEBDAV_URL, session=session)
+        if not settings.RFB_SHARE_TOKEN:
+            raise ValueError(
+                "RFB_SHARE_TOKEN não configurado no .env "
+                "(token do link público da Receita Federal)."
+            )
         self.session.auth = (settings.RFB_SHARE_TOKEN, "")
 
     def descobrir_competencia_mais_recente(self) -> str:
