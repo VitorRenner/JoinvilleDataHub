@@ -235,13 +235,12 @@ Rodar mais de uma vez não duplica dados (upsert por `competencia + setor`).
 
 ## 🔮 Pendências e próximos passos
 
-- 🧪 **Testes automatizados:** `tests/test_transformer_rfb.py` e
-  `tests/test_rfb_router.py`, com CSV pequeno de exemplo (sem baixar da
-  Receita).
+- ✅ **Testes automatizados:** feito em 18/11/2026
+  (`tests/test_transformer_rfb.py` e `tests/test_rfb_router.py`).
 - 🔁 **Atraso do cadastro:** as aberturas do mês mais recente tendem a vir
   subestimadas; avaliar reprocessar as últimas 2–3 competências a cada execução.
 - 🕰️ **Série histórica de aberturas:** o arquivo de um único mês já traz a data
   de abertura de todas as empresas; dá para montar o histórico numa carga só.
-- 🔧 **`RFB_SHARE_TOKEN` no `../.env`:** hoje está fixo no `settings.py`.
+- ✅ **`RFB_SHARE_TOKEN` no `../.env`:** feito em 18/11/2026.
 - ✅ **Separar `models.py` por fonte:** feito em 16/11/2026
   (`src/database/models/`).
