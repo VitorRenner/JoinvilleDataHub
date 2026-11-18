@@ -1,17 +1,12 @@
-# Joinville Data Hub
+Infraestrutura de dados que centraliza as informações econômicas de Joinville, uma cidade de 650 mil habitantes, numa única fonte confiável. Sou o desenvolvedor responsável pelo sistema inteiro, numa iniciação científica com orientador.
 
-**API em Python que coleta, trata e entrega dados públicos oficiais sobre
-emprego e empresas de Joinville/SC.**
+• 4 APIs REST em FastAPI, com dados sensíveis isolados fora do repositório e testes automatizados com Pytest
+• 4 automações ETL agendadas que coletam, tratam e integram dados do CAGED, do IBGE (CEMPRE) e da Receita Federal, sem nenhuma execução manual
+• Servidor dedicado com PostgreSQL e modelagem relacional via SQLAlchemy, alimentando o site Nexus
+• Migração para o Google Cloud em andamento, com os recursos do programa Google Student Ambassador
+• Arquitetura limpa (Clean Architecture), pensada para escalar e ser mantida por outras pessoas
 
-Os dados vêm de três fontes do governo (Novo Cadastro Geral de Empregados e
-Desempregados, Cadastro Central de Empresas e Receita Federal do Brasil),
-chegam brutos e em formatos diferentes, e saem daqui limpos, padronizados e
-prontos para consumo pelo site "Nexus", dentro do Programa de Iniciação
-Científica (PIC).
-
-Meu ideal central foi fazer sozinho um projeto com o nível de qualidade que
-uma empresa ou um grupo de desenvolvedores entregaria, com o acompanhamento
-do meu orientador.
+Stack: Python · FastAPI · PostgreSQL · SQLAlchemy · Pytest · Google Cloud
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
