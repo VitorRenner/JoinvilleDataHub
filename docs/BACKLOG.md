@@ -322,6 +322,26 @@ de software.
   senão ela entra como `drop_table`.
 - `ruff check .` encontra 76 avisos antigos em outros arquivos.
 
+## Sessão 14 (18/11/2026) — Token da RFB no .env e testes da RFB
+
+### Concluído
+
+- `RFB_SHARE_TOKEN` saiu do `settings.py` e passou a vir do `.env`
+  (padrão vazio, para a API e o CI subirem sem ele).
+- `RfbCollector` recusa rodar com o token vazio (`ValueError` com mensagem
+  clara, em vez de um 401 no meio do download).
+- `.env.example` e `.env.docker` atualizados com a variável.
+- Token validado com o `inspecionar_rfb`: 30 colunas, 131.707 estabelecimentos
+  de Joinville no `Estabelecimentos0` (todos SC), arquivo de 14/11/2026.
+- Criados `tests/test_transformer_rfb.py` (6 testes) e
+  `tests/test_rfb_router.py` (6 testes), sem baixar nada da Receita.
+- Suíte: 20 → 32 testes passando; Ruff sem erros.
+
+### Problemas encontrados
+
+- O `inspecionar_rfb` baixa o `Estabelecimentos0.zip` inteiro (~2,2 GB,
+  ~19 min) e não apaga no fim; usar só para inspeção, não como teste rápido.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -354,7 +374,7 @@ de software.
       `caged.py`, `cempre.py`, `rfb.py`).
 - [x] Zerar os avisos do Ruff (76 → 0 em 16/11/2026) e tornar o lint
       obrigatório no CI.
-- [ ] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
+- [x] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
 - [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução
       (aberturas do mês mais recente vêm subestimadas).
 - [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um
@@ -390,7 +410,7 @@ de software.
       nos testes).
 - [ ] Adicionar teste para a leitura dos anos pela linha de comando no service
       do CEMPRE.
-- [ ] Criar testes do transformer e do router da RFB (`test_transformer_rfb.py`,
+- [x] Criar testes do transformer e do router da RFB (`test_transformer_rfb.py`,
       `test_rfb_router.py`), com CSV pequeno de exemplo.
 - [ ] Abrir a sessão do banco no service da RFB só na hora de gravar, para não
       manter uma transação aberta durante o download.
