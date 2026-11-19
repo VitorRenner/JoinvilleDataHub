@@ -1,7 +1,7 @@
 Infraestrutura de dados que centraliza as informações econômicas de Joinville, uma cidade de 650 mil habitantes, numa única fonte confiável. Sou o desenvolvedor responsável pelo sistema inteiro, numa iniciação científica com orientador.
 
-• 4 APIs REST em FastAPI, com dados sensíveis isolados fora do repositório e testes automatizados com Pytest
-• 4 automações ETL agendadas que coletam, tratam e integram dados do CAGED, do IBGE (CEMPRE) e da Receita Federal, sem nenhuma execução manual
+• Uma API REST em FastAPI com 4 domínios de dados (CAGED, CEMPRE, CNPJ e municípios do IBGE), configurações sensíveis fora do repositório e testes automatizados com Pytest
+• 3 automações ETL agendadas que coletam, tratam e integram dados do CAGED, do IBGE (CEMPRE) e da Receita Federal, sem nenhuma execução manual
 • Servidor dedicado com PostgreSQL e modelagem relacional via SQLAlchemy, alimentando o site Nexus
 • Migração para o Google Cloud em andamento, com os recursos do programa Google Student Ambassador
 • Arquitetura limpa (Clean Architecture), pensada para escalar e ser mantida por outras pessoas
