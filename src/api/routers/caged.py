@@ -7,6 +7,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from src.core.security import exigir_token_uso_unico
 from src.database import repositorio
 from src.database.conexao import get_db
 from src.schemas.caged import (
@@ -102,6 +103,7 @@ def buscar_caged_por_id(
     "/",
     response_model=dict,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(exigir_token_uso_unico)],
 )
 def criar_caged(
     dados: CagedCreate,
@@ -111,9 +113,10 @@ def criar_caged(
     Cria ou atualiza um registro do CAGED.
     """
 
+    # upsert_caged recebe os schemas (ele mesmo faz o model_dump)
     quantidade = repositorio.upsert_caged(
         db,
-        [dados.model_dump()],
+        [dados],
     )
 
     return {
@@ -126,6 +129,7 @@ def criar_caged(
     "/bulk",
     response_model=dict,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(exigir_token_uso_unico)],
 )
 def criar_bulk_caged(
     dados: CagedBulkCreate,
@@ -135,11 +139,9 @@ def criar_bulk_caged(
     Cria ou atualiza múltiplos registros.
     """
 
-    registros = [registro.model_dump() for registro in dados.registros]
-
     quantidade = repositorio.upsert_caged(
         db,
-        registros,
+        dados.registros,
     )
 
     return {
@@ -150,6 +152,7 @@ def criar_bulk_caged(
 
 @router.delete(
     "/{registro_id}",
+    dependencies=[Depends(exigir_token_uso_unico)],
 )
 def deletar_caged(
     registro_id: int,

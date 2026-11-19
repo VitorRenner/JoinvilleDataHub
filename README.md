@@ -23,17 +23,19 @@ end: architecture, data, API, automation and infrastructure.
 | --- | --- |
 | 🔌 **API** | One FastAPI REST service with 4 data domains (CAGED, CEMPRE, CNPJ and IBGE municipalities), Pydantic validation and Swagger at `/docs` |
 | ⚙️ **Automation** | 3 scheduled ETL pipelines (CAGED, CEMPRE and Federal Revenue) that run with no manual steps, in a process separate from the API |
-| 🗄️ **Data** | PostgreSQL with SQLAlchemy, 4 versioned Alembic migrations and idempotent loads (upsert): re-running a load updates rows instead of duplicating them |
+| 🗄️ **Data** | PostgreSQL with SQLAlchemy, 5 versioned Alembic migrations and idempotent loads (upsert): re-running a load updates rows instead of duplicating them |
 | 🛡️ **Resilience** | Each source is isolated: if one breaks, the API starts without it and the others stay online |
+| 🔐 **Security** | Reads are public, writes need a single-use token that only the server can issue: it expires in minutes, is stored as a hash and never works twice. Strict input validation and locked-down CORS ([SECURITY.md](SECURITY.md)) |
 | 🔒 **Privacy** | Federal Revenue data is stored only in aggregate, never company by company; the partners file is not used |
 | 🐳 **Infra** | Multi-stage Docker running as non-root, Compose with the API and the scheduler in separate containers, a dedicated server feeding the Nexus website; migration to Google Cloud in progress |
-| ✅ **Quality** | 32 Pytest tests, Ruff and GitHub Actions on every push and pull request |
+| ✅ **Quality** | 58 Pytest tests, Ruff and GitHub Actions on every push and pull request |
 
 > **How this project was built:** I defined the problem, the data sources, the
 > data model and the architecture, and drove every decision (logged in
 > [`docs/historico_arquitetonico.md`](docs/historico_arquitetonico.md)).
 > I used AI coding agents (Claude Code) as a pair programmer; every change goes
 > through my review, automated tests and CI before it reaches `master`.
+> More on that in [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
 
 ---
 
@@ -94,11 +96,21 @@ The full decision log is in
 | `GET` | `/docs` | Swagger with every route |
 | `GET` | `/health` | Application and database status |
 | `GET` | `/caged/` | CAGED (filters: `competencia`, `setor`) |
-| `POST` | `/caged/` · `/caged/bulk` | Creates or updates one or many records |
+| `POST` | `/caged/` · `/caged/bulk` | Creates or updates one or many records 🔐 |
+| `DELETE` | `/caged/{id}` | Deletes a record 🔐 |
 | `GET` | `/cempre/` | CEMPRE (filters: `ano`, `setor`, `incluir_total`) |
 | `GET` | `/rfb/` | RFB (filters: `competencia`, `setor`, `incluir_total`) |
 | `GET` | `/{source}/stats/resumo` | Summary for `caged`, `cempre` or `rfb` |
 | `GET` | `/ibge/municipios` | IBGE municipalities |
+
+🔐 Needs a single-use token in the `X-API-Token` header. Tokens are issued only
+on the server:
+
+```bash
+uv run python -m src.scripts.gerar_token --descricao "manual CAGED fix"
+```
+
+Details in [SECURITY.md](SECURITY.md).
 
 ## Running it
 
@@ -143,7 +155,9 @@ uv run pytest -q
 ```
 
 The tests cover the CAGED, CEMPRE and RFB routes, the CAGED collector, the
-health check and the CEMPRE and RFB transformers. GitHub Actions runs Ruff and
+health check, the CEMPRE and RFB transformers, and security: single-use tokens
+(reuse, expiry, missing or unknown token), input validation and CORS.
+GitHub Actions runs Ruff and
 the tests on every push and pull request to `master`; any Ruff warning fails
 the build.
 
@@ -158,7 +172,7 @@ src/
 ├── schemas/        # Pydantic validation
 ├── services/       # full update flow for each source
 ├── scheduler/      # scheduled jobs
-└── core/           # settings and logging
+└── core/           # settings, logging and security (single-use tokens)
 alembic/            # database migrations
 tests/              # pytest tests
 docs/               # integrations, how to run, backlog and decision log
@@ -166,12 +180,19 @@ docs/               # integrations, how to run, backlog and decision log
 
 ## Roadmap
 
-- [ ] API key authentication on write endpoints (`POST` and `DELETE`)
+- [x] Single-use token authentication on write endpoints (`POST` and `DELETE`)
+- [ ] Rate limiting on public routes
 - [ ] Tests for the collectors, services and scheduler
 - [ ] Natural-language questions about Joinville's economy with an LLM agent (tool calling over this API)
 - [ ] Public deployment with a link
 
-## Documentation (Portuguese)
+## Documentation
+
+- [`SECURITY.md`](SECURITY.md): security model, single-use tokens and known
+  limitations
+- [`docs/AI_USAGE.md`](docs/AI_USAGE.md): how AI is used in this project
+
+In Portuguese:
 
 - [`docs/COMO_RODAR_O_PROJETO.md`](docs/COMO_RODAR_O_PROJETO.md): setup and
   running

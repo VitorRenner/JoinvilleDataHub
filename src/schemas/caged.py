@@ -1,6 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+# Teto de registros por chamada do /bulk, para um único request não
+# derrubar a API nem o banco
+CAGED_BULK_MAX_REGISTROS = 1000
 
 
 class CagedBase(BaseModel):
@@ -18,9 +22,18 @@ class CagedBase(BaseModel):
 class CagedCreate(CagedBase):
     """
     Schema utilizado para criação de registros CAGED.
+
+    As validações ficam só na entrada: a resposta (CagedResponse) não
+    pode quebrar por causa de um registro antigo já gravado no banco.
     """
 
-    pass
+    # Limites iguais aos da tabela (String(6) e String(100))
+    competencia: str = Field(pattern=r"^\d{6}$", description="Formato YYYYMM")
+    setor: str = Field(min_length=1, max_length=100)
+    admissoes: int = Field(ge=0)
+    demissoes: int = Field(ge=0)
+    # Saldo pode ser negativo (mais demissões que admissões)
+    saldo: int
 
 
 class CagedBulkCreate(BaseModel):
@@ -28,7 +41,10 @@ class CagedBulkCreate(BaseModel):
     Schema utilizado para criação de múltiplos registros CAGED.
     """
 
-    registros: list[CagedCreate]
+    registros: list[CagedCreate] = Field(
+        min_length=1,
+        max_length=CAGED_BULK_MAX_REGISTROS,
+    )
 
 
 class CagedResponse(CagedBase):

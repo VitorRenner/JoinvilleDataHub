@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     API_TITLE: str = "Joinville Data Hub"
-    API_VERSION: str = "1.0.0"
+    API_VERSION: str = "1.1.0"
     API_DESCRIPTION: str = (
         "API de dados públicos de Joinville/SC: "
         "CAGED (emprego), CEMPRE/IBGE (empresas e salários) e RFB (CNPJ)."
