@@ -7,14 +7,15 @@ import pandas as pd
 import py7zr
 
 from src.collectors.base import BaseCollector
+from src.core.settings import settings
 
-FTP_HOST = "ftp.mtps.gov.br"
-FTP_DIRETORIO_BASE = "pdet/microdados/NOVO CAGED"
+FTP_HOST = settings.CAGED_FTP_HOST
+FTP_DIRETORIO_BASE = settings.CAGED_FTP_DIRETORIO
 BASE_URL = f"ftp://{FTP_HOST}/{FTP_DIRETORIO_BASE}"
 
 # Código do município de Joinville sem o dígito verificador, formato utilizado
 # pela coluna "município" dos microdados do Novo CAGED (IBGE completo: 4209102).
-CODIGO_JOINVILLE = 420910
+CODIGO_JOINVILLE = settings.CAGED_MUNICIPIO_JOINVILLE
 
 # O Novo CAGED (layout CAGEDMOV/FOR/EXC) está disponível no FTP oficial a
 # partir da competência 202001. Competências anteriores pertencem ao CAGED
@@ -65,7 +66,7 @@ class CagedCollector(BaseCollector):
                         f"Erro ao conectar ao FTP do CAGED após "
                         f"{max_tentativas} tentativas: {erro}"
                     ) from erro
-                wait = 2 ** tentativa
+                wait = 2**tentativa
                 logger.warning(
                     "Tentativa %d/%d de conexão FTP falhou: %s. "
                     "Aguardando %ds para retry.",
@@ -186,7 +187,7 @@ class CagedCollector(BaseCollector):
                                     f"Falha ao baixar {nome_arquivo} após "
                                     f"{max_tentativas} tentativas: {erro}"
                                 ) from erro
-                            wait = 2 ** tentativa
+                            wait = 2**tentativa
                             logger.warning(
                                 "Tentativa %d/%d de download de %s falhou: "
                                 "%s. Aguardando %ds.",
@@ -260,8 +261,7 @@ class CagedCollector(BaseCollector):
         arquivos = self._baixar_competencia(competencia)
 
         dataframes_joinville = [
-            self.processar_arquivo_local(str(caminho))
-            for caminho in arquivos.values()
+            self.processar_arquivo_local(str(caminho)) for caminho in arquivos.values()
         ]
 
         dados_joinville = (
@@ -327,27 +327,25 @@ class CagedCollector(BaseCollector):
             .astype(int)
         )
 
-        agregados = (
-            df.groupby(
-                [
-                    "competencia",
-                    "setor",
-                ],
-                as_index=False,
-            ).agg(
-                admissoes=(
-                    "saldomovimentação",
-                    lambda serie: int((serie == 1).sum()),
-                ),
-                demissoes=(
-                    "saldomovimentação",
-                    lambda serie: int((serie == -1).sum()),
-                ),
-                saldo=(
-                    "saldomovimentação",
-                    "sum",
-                ),
-            )
+        agregados = df.groupby(
+            [
+                "competencia",
+                "setor",
+            ],
+            as_index=False,
+        ).agg(
+            admissoes=(
+                "saldomovimentação",
+                lambda serie: int((serie == 1).sum()),
+            ),
+            demissoes=(
+                "saldomovimentação",
+                lambda serie: int((serie == -1).sum()),
+            ),
+            saldo=(
+                "saldomovimentação",
+                "sum",
+            ),
         )
 
         return agregados[colunas_finais]
@@ -373,7 +371,7 @@ class CagedCollector(BaseCollector):
 
         df = self.read_csv(
             str(caminho),
-            sep=';',
+            sep=";",
             encoding="UTF-8",
             low_memory=False,
         )

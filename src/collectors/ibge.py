@@ -4,9 +4,10 @@ from typing import Any
 import requests
 
 from src.collectors.base import BaseCollector
+from src.core.settings import settings
 
-BASE_URL = "https://servicodados.ibge.gov.br/api/v1"
-CODIGO_JOINVILLE = 4209102
+BASE_URL = settings.IBGE_BASE_URL
+CODIGO_JOINVILLE = settings.IBGE_MUNICIPIO_JOINVILLE
 
 logger = logging.getLogger(__name__)
 
@@ -72,4 +73,3 @@ class IBGECollector(BaseCollector):
         url = f"{self.base_url}/localidades/municipios/{CODIGO_JOINVILLE}"
 
         return self._buscar_json(url)
-

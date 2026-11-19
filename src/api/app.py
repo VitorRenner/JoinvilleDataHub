@@ -7,11 +7,12 @@ from sqlalchemy import text
 
 from src.api.routers import caged, ibge
 from src.core.logging import configurar_logging
+from src.core.settings import settings
 from src.database.conexao import engine
 
-API_TITLE = "CAGED API - Joinville"
-API_DESCRIPTION = "API para dados de emprego e desemprego de Joinville/SC"
-API_VERSION = "1.0.0"
+API_TITLE = settings.API_TITLE
+API_DESCRIPTION = settings.API_DESCRIPTION
+API_VERSION = settings.API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
