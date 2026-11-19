@@ -64,6 +64,7 @@ class DownloadInvalido(Exception):
 
 # ─────────────── Collector ───────────────
 
+
 class RfbCollector(BaseCollector):
 
     def __init__(self, session: requests.Session | None = None) -> None:
@@ -76,7 +77,6 @@ class RfbCollector(BaseCollector):
         self.session.auth = (settings.RFB_SHARE_TOKEN, "")
 
     def descobrir_competencia_mais_recente(self) -> str:
-
         """Lista as pastas AAAA-MM do servidor e devolve a mais recente."""
 
         resposta = self.session.request(
@@ -90,9 +90,7 @@ class RfbCollector(BaseCollector):
         # Depth 1: lista só o primeiro nível (as pastas AAAA-MM).
 
         if resposta.status_code != 207:
-            raise RuntimeError(
-                f"Listagem da RFB falhou: status {resposta.status_code}"
-            )
+            raise RuntimeError(f"Listagem da RFB falhou: status {resposta.status_code}")
         # 207 (Multi-Status) é o código de sucesso do PROPFIND, não 200.
 
         competencias = sorted(set(re.findall(r"/(\d{4}-\d{2})/", resposta.text)))
@@ -109,7 +107,6 @@ class RfbCollector(BaseCollector):
         return mais_recente
 
     def baixar(self, competencia: str, nome_arquivo: str) -> Path:
-
         """
         Baixa um zip em streaming, com retry e validação.
         Devolve o caminho no disco.
@@ -123,12 +120,14 @@ class RfbCollector(BaseCollector):
             try:
                 logger.info(
                     "Baixando %s (tentativa %s/%s)",
-                    nome_arquivo, tentativa, settings.RFB_TENTATIVAS,
+                    nome_arquivo,
+                    tentativa,
+                    settings.RFB_TENTATIVAS,
                 )
                 with self.session.get(
-                        url,
-                        stream=True,
-                        timeout=settings.RFB_TIMEOUT_SEGUNDOS,
+                    url,
+                    stream=True,
+                    timeout=settings.RFB_TIMEOUT_SEGUNDOS,
                 ) as resposta:
                     resposta.raise_for_status()
 
@@ -169,7 +168,8 @@ class RfbCollector(BaseCollector):
 
                 logger.info(
                     "Download concluído: %s (%.0f MB)",
-                    destino, tamanho_baixado / (1024 * 1024),
+                    destino,
+                    tamanho_baixado / (1024 * 1024),
                 )
                 return destino
 
@@ -192,7 +192,6 @@ class RfbCollector(BaseCollector):
         )
 
     def ler_em_blocos(self, caminho_zip: Path, colunas: dict, filtro) -> pd.DataFrame:
-
         """Lê o CSV de dentro do zip em blocos e guarda só as linhas do filtro."""
 
         blocos_filtrados = []
@@ -235,14 +234,15 @@ class RfbCollector(BaseCollector):
         resultado = pd.concat(blocos_filtrados, ignore_index=True)
         logger.info(
             "%s: %s linhas lidas, %s mantidas pelo filtro",
-            caminho_zip.name, total_linhas, len(resultado),
+            caminho_zip.name,
+            total_linhas,
+            len(resultado),
         )
         return resultado
 
     def _ler_partes(
-            self, prefixo: str, competencia: str, colunas: dict, filtro
+        self, prefixo: str, competencia: str, colunas: dict, filtro
     ) -> pd.DataFrame:
-
         """Baixa e lê {prefixo} 0 até o 9.zip um por vez e junta as linhas do filtro."""
 
         partes = []
@@ -261,7 +261,6 @@ class RfbCollector(BaseCollector):
     def ler_estabelecimentos_joinville(
         self, competencia: str
     ) -> tuple[pd.DataFrame, set[str]]:
-
         """
         Percorre Estabelecimentos 0 até o 9 e devolve
         (tabela, conjunto de cnpj_basico).
@@ -286,12 +285,12 @@ class RfbCollector(BaseCollector):
 
         logger.info(
             "Joinville: %s estabelecimentos, %s cnpj_basico distintos",
-            len(estabelecimentos), len(conjunto_cnpj),
+            len(estabelecimentos),
+            len(conjunto_cnpj),
         )
         return estabelecimentos, conjunto_cnpj
 
     def ler_empresas(self, conjunto_cnpj: set[str], competencia: str) -> pd.DataFrame:
-
         """Percorre Empresas0..9 e guarda só os cnpj_basico de Joinville."""
 
         def eh_de_joinville(bloco: pd.DataFrame) -> pd.Series:
@@ -311,7 +310,6 @@ class RfbCollector(BaseCollector):
         return empresas
 
     def ler_simples(self, conjunto_cnpj: set[str], competencia: str) -> pd.DataFrame:
-
         """Lê o Simples.zip e guarda só os cnpj_basico de Joinville."""
 
         def eh_de_joinville(bloco: pd.DataFrame) -> pd.Series:
@@ -333,7 +331,6 @@ class RfbCollector(BaseCollector):
     def coletar(
         self, competencia: str | None = None
     ) -> tuple[str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-
         """Junta tudo: devolve (competencia, estabelecimentos, empresas, simples)."""
 
         competencia = competencia or self.descobrir_competencia_mais_recente()

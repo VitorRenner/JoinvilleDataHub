@@ -12,7 +12,7 @@ from src.core.settings import settings
 # o total do município, e o projeto inteiro trabalha com ano + setor.
 TABELA_CEMPRE = 9510
 
-CODIGO_JOINVILLE = 4209102
+CODIGO_JOINVILLE = settings.IBGE_MUNICIPIO_JOINVILLE
 
 # Variáveis da tabela 9510 que o projeto usa:
 # 706   -> Número de unidades locais (Unidades)
@@ -70,8 +70,8 @@ class CempreCollector(BaseCollector):
         )
 
     def _buscar_json(
-            self,
-            url: str,
+        self,
+        url: str,
     ) -> list[dict[str, Any]]:
         """
         Realiza uma requisição GET e retorna o JSON da resposta.
@@ -95,16 +95,14 @@ class CempreCollector(BaseCollector):
             return response.json()
 
         except (
-                requests.RequestException,
-                ValueError,
+            requests.RequestException,
+            ValueError,
         ) as erro:
-            raise RuntimeError(
-                f"Erro ao acessar a API do SIDRA: {erro}"
-            ) from erro
+            raise RuntimeError(f"Erro ao acessar a API do SIDRA: {erro}") from erro
 
     def _montar_url(
-            self,
-            periodo: int | str,
+        self,
+        periodo: int | str,
     ) -> str:
         """
         Monta a URL de consulta da tabela do CEMPRE, filtrando por
@@ -123,8 +121,8 @@ class CempreCollector(BaseCollector):
         )
 
     def coletar(
-            self,
-            ano: int | None = None,
+        self,
+        ano: int | None = None,
     ) -> pd.DataFrame:
         """
         Coleta os dados do CEMPRE para o município de Joinville.

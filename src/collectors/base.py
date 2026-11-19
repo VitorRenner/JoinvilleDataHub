@@ -19,9 +19,9 @@ class BaseCollector(ABC):
     DOWNLOAD_CHUNK_SIZE = 8192
 
     def __init__(
-            self,
-            base_url: str,
-            session: requests.Session | None = None,
+        self,
+        base_url: str,
+        session: requests.Session | None = None,
     ) -> None:
         """
         Inicializa o coletor.
@@ -32,8 +32,8 @@ class BaseCollector(ABC):
 
     @abstractmethod
     def coletar(
-            self,
-            **kwargs: Any,
+        self,
+        **kwargs: Any,
     ) -> Any:
         """
         Executa a coleta dos dados.
@@ -44,9 +44,9 @@ class BaseCollector(ABC):
         raise NotImplementedError
 
     def download_file(
-            self,
-            url: str,
-            caminho_arquivo: str,
+        self,
+        url: str,
+        caminho_arquivo: str,
     ) -> bool:
         """
         Realiza o download de um arquivo.
@@ -75,7 +75,7 @@ class BaseCollector(ABC):
 
             with caminho.open("wb") as arquivo:
                 for chunk in response.iter_content(
-                        chunk_size=self.DOWNLOAD_CHUNK_SIZE,
+                    chunk_size=self.DOWNLOAD_CHUNK_SIZE,
                 ):
                     if chunk:
                         arquivo.write(chunk)
@@ -88,14 +88,12 @@ class BaseCollector(ABC):
             return True
 
         except requests.RequestException as erro:
-            raise RuntimeError(
-                f"Erro ao baixar arquivo: {erro}"
-            ) from erro
+            raise RuntimeError(f"Erro ao baixar arquivo: {erro}") from erro
 
     def read_excel(
-            self,
-            caminho_arquivo: str,
-            **kwargs: Any,
+        self,
+        caminho_arquivo: str,
+        **kwargs: Any,
     ) -> pd.DataFrame:
         """
         Lê um arquivo Excel e retorna um DataFrame.
@@ -115,19 +113,17 @@ class BaseCollector(ABC):
             return dataframe
 
         except (
-                FileNotFoundError,
-                PermissionError,
-                ValueError,
-                ParserError,
+            FileNotFoundError,
+            PermissionError,
+            ValueError,
+            ParserError,
         ) as erro:
-            raise RuntimeError(
-                f"Erro ao ler arquivo Excel: {erro}"
-            ) from erro
+            raise RuntimeError(f"Erro ao ler arquivo Excel: {erro}") from erro
 
     def read_csv(
-            self,
-            caminho_arquivo: str,
-            **kwargs: Any,
+        self,
+        caminho_arquivo: str,
+        **kwargs: Any,
     ) -> pd.DataFrame:
         """
         Lê um arquivo CSV ou TXT e retorna um DataFrame.
@@ -147,11 +143,9 @@ class BaseCollector(ABC):
             return dataframe
 
         except (
-                FileNotFoundError,
-                PermissionError,
-                ValueError,
-                ParserError,
+            FileNotFoundError,
+            PermissionError,
+            ValueError,
+            ParserError,
         ) as erro:
-            raise RuntimeError(
-                f"Erro ao ler arquivo CSV/TXT: {erro}"
-            ) from erro
+            raise RuntimeError(f"Erro ao ler arquivo CSV/TXT: {erro}") from erro

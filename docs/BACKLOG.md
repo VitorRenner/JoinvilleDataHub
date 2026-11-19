@@ -342,6 +342,32 @@ de software.
 - O `inspecionar_rfb` baixa o `Estabelecimentos0.zip` inteiro (~2,2 GB,
   ~19 min) e não apaga no fim; usar só para inspeção, não como teste rápido.
 
+## Sessão 15 (19/11/2026) — Revisão das configurações (v1.0.0)
+
+### Concluído
+
+- `settings.py` passa a ser a fonte única das configurações: título,
+  descrição e versão da API saem do `app.py` e passam a ser lidos do
+  settings.
+- Nome da API atualizado para "Joinville Data Hub", com a descrição
+  citando as três fontes (CAGED, CEMPRE/IBGE e RFB).
+- CORS configurável pelo `.env` (`CORS_ORIGINS`, lista em JSON), para
+  liberar o front Nexus sem mexer no código.
+- `CAGED_BASE_URL` (Portal da Transparência, sem uso) substituído por
+  `CAGED_FTP_HOST` e `CAGED_FTP_DIRETORIO`, que são de fato usados pelo
+  collector.
+- Códigos de Joinville centralizados no settings:
+  `CAGED_MUNICIPIO_JOINVILLE` (420910), `IBGE_MUNICIPIO_JOINVILLE`
+  (4209102) e `RFB_MUNICIPIO_JOINVILLE` (8179).
+- Collectors do CAGED, CEMPRE e IBGE lendo endereços e códigos do
+  settings, sem valores fixos no código.
+- Comentários do bloco da RFB no settings reescritos: um comentário
+  técnico por variável.
+- `.env.example` reorganizado por fonte, com `CORS_ORIGINS` e as
+  variáveis da RFB.
+- Validação: 32 testes passando, Ruff sem erros e API subindo com o
+  Swagger em `/docs`.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -358,7 +384,7 @@ de software.
 - [x] Concluir a integração prática com a RFB (CNPJ).
 - [x] Disponibilizar a RFB na API (`/rfb`).
 - [x] Agendar a atualização automática da RFB.
-- [ ] Revisar configurações da aplicação.
+- [x] Revisar configurações da aplicação.
 
 ---
 
@@ -442,3 +468,4 @@ e internacionais.
 | 12/11/2026 | v0.4.2 | Correção do CAGED: declarações FOR/EXC sobrescreviam meses já carregados; recarga de 202605 e 202606 e testes do collector. |
 | 16/11/2026 | v0.4.3 | Models separados por fonte (`src/database/models/`) e README atualizado. |
 | 16/11/2026 | v0.4.4 | Avisos do Ruff zerados e lint obrigatório no CI. |
+| 19/11/2026 | v1.0.0 | Configurações centralizadas no settings, CORS pelo `.env` e P0 concluído: primeira versão estável do servidor. |
