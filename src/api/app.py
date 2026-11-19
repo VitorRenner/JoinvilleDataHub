@@ -41,9 +41,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # A API não usa cookies nem sessão: sem credenciais no CORS
+    allow_credentials=False,
+    # Só o que a API expõe, em vez de liberar qualquer método e header
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "X-API-Token"],
 )
 
 

@@ -368,6 +368,35 @@ de software.
 - Validação: 32 testes passando, Ruff sem erros e API subindo com o
   Swagger em `/docs`.
 
+## Sessão 16 (19/11/2026) — Segurança da API (v1.1.0)
+
+### Concluído
+
+- Rotas de escrita (`POST /caged/`, `POST /caged/bulk`, `DELETE /caged/{id}`)
+  passaram a exigir token de uso único no header `X-API-Token`; leitura segue
+  pública.
+- Tokens emitidos só no servidor (`python -m src.scripts.gerar_token`), sem
+  rota HTTP; validade de 15 min (máx. 60); banco guarda só o hash SHA-256;
+  consumo atômico com um `UPDATE` condicional (nova tabela `api_tokens`,
+  migration `5e8c1f0a9b2d`).
+- Validação de entrada no `CagedCreate`: competência `YYYYMM`, setor de 1 a
+  100 caracteres, admissões e demissões não negativas; `/bulk` limitado a
+  1.000 registros.
+- CORS fechado: sem credenciais, só `GET`/`POST`/`DELETE` e os headers
+  `Content-Type` e `X-API-Token`.
+- `SECURITY.md` e `docs/AI_USAGE.md` criados; README atualizado.
+- Suíte: 32 → 58 testes passando; Ruff sem erros.
+
+### Problemas encontrados
+
+- `POST /caged/` e `/caged/bulk` davam 500 desde sempre: o router passava
+  dicts para `upsert_caged`, que espera schemas. Corrigido; as rotas nunca
+  tinham sido testadas.
+- Qualquer escrita que falhe (422, 404 ou 500) também consome o token, porque
+  ele é consumido na dependência, antes do corpo e da escrita. Aceito: falha fechada.
+- O commit `0cdd50a` do histórico tem um `.env` com a senha de um Postgres
+  local já trocada. Histórico não reescrito.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -401,6 +430,9 @@ de software.
 - [x] Zerar os avisos do Ruff (76 → 0 em 16/11/2026) e tornar o lint
       obrigatório no CI.
 - [x] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
+- [x] Autenticação das rotas de escrita com token de uso único.
+- [ ] Rate limiting nas rotas públicas.
+- [ ] Limpeza periódica dos tokens usados ou vencidos na tabela `api_tokens`.
 - [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução
       (aberturas do mês mais recente vêm subestimadas).
 - [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um
@@ -469,3 +501,4 @@ e internacionais.
 | 16/11/2026 | v0.4.3 | Models separados por fonte (`src/database/models/`) e README atualizado. |
 | 16/11/2026 | v0.4.4 | Avisos do Ruff zerados e lint obrigatório no CI. |
 | 19/11/2026 | v1.0.0 | Configurações centralizadas no settings, CORS pelo `.env` e P0 concluído: primeira versão estável do servidor. |
+| 19/11/2026 | v1.1.0 | Segurança: token de uso único nas rotas de escrita, validação de entrada, CORS fechado, SECURITY.md e AI_USAGE.md. |
