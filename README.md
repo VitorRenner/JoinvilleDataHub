@@ -1,13 +1,6 @@
-Infraestrutura de dados que centraliza as informações econômicas de Joinville, uma cidade de 650 mil habitantes, numa única fonte confiável. Sou o desenvolvedor responsável pelo sistema inteiro, numa iniciação científica com orientador.
+# Joinville Data Hub
 
-• Uma API REST em FastAPI com 4 domínios de dados (CAGED, CEMPRE, CNPJ e municípios do IBGE), configurações sensíveis fora do repositório e testes automatizados com Pytest
-• 3 automações ETL agendadas que coletam, tratam e integram dados do CAGED, do IBGE (CEMPRE) e da Receita Federal, sem nenhuma execução manual
-• Servidor dedicado com PostgreSQL e modelagem relacional via SQLAlchemy, alimentando o site Nexus
-• Migração para o Google Cloud em andamento, com os recursos do programa Google Student Ambassador
-• Arquitetura limpa (Clean Architecture), pensada para escalar e ser mantida por outras pessoas
-
-Stack: Python · FastAPI · PostgreSQL · SQLAlchemy · Pytest · Google Cloud
-
+[![CI](https://github.com/VitorRenner/JoinvilleDataHub/actions/workflows/ci.yml/badge.svg)](https://github.com/VitorRenner/JoinvilleDataHub/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
@@ -15,161 +8,182 @@ Stack: Python · FastAPI · PostgreSQL · SQLAlchemy · Pytest · Google Cloud
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white)
 
+**The official economic data of Joinville, Brazil (650,000 people) in a single API that keeps itself up to date.**
+
+Anyone who wants to know how many jobs Joinville's industry added this month,
+how many new companies opened, or what each sector pays has to dig through
+multi-GB government files, each with its own layout and with all of Brazil
+inside. Joinville Data Hub does that work on its own: it downloads, filters,
+cleans and serves everything through an API.
+
+Undergraduate research project, with a faculty advisor. I own the system end to
+end: architecture, data, API, automation and infrastructure.
+
+| | |
+| --- | --- |
+| 🔌 **API** | One FastAPI REST service with 4 data domains (CAGED, CEMPRE, CNPJ and IBGE municipalities), Pydantic validation and Swagger at `/docs` |
+| ⚙️ **Automation** | 3 scheduled ETL pipelines (CAGED, CEMPRE and Federal Revenue) that run with no manual steps, in a process separate from the API |
+| 🗄️ **Data** | PostgreSQL with SQLAlchemy, 4 versioned Alembic migrations and idempotent loads (upsert): re-running a load updates rows instead of duplicating them |
+| 🛡️ **Resilience** | Each source is isolated: if one breaks, the API starts without it and the others stay online |
+| 🔒 **Privacy** | Federal Revenue data is stored only in aggregate, never company by company; the partners file is not used |
+| 🐳 **Infra** | Multi-stage Docker running as non-root, Compose with the API and the scheduler in separate containers, a dedicated server feeding the Nexus website; migration to Google Cloud in progress |
+| ✅ **Quality** | 32 Pytest tests, Ruff and GitHub Actions on every push and pull request |
+
+> **How this project was built:** I defined the problem, the data sources, the
+> data model and the architecture, and drove every decision (logged in
+> [`docs/historico_arquitetonico.md`](docs/historico_arquitetonico.md)).
+> I used AI coding agents (Claude Code) as a pair programmer; every change goes
+> through my review, automated tests and CI before it reaches `master`.
+
 ---
 
-## O problema
+## Data sources
 
-Quem quer entender o mercado de trabalho de Joinville precisa baixar arquivos
-enormes do governo, compactados, com layouts diferentes e com dados do Brasil
-inteiro. Este projeto automatiza isso: baixa, filtra Joinville, trata e
-entrega tudo numa API simples.
-
-## Fontes de dados
-
-| Fonte | Órgão | O que mostra | Freq. | Rota |
+| Source | Agency | What it shows | Frequency | Route |
 | --- | --- | --- | --- | --- |
-| **CAGED** | MTE | Admissões, demissões e saldo por setor | Mensal | `/caged` |
-| **CEMPRE** | IBGE | Unidades, pessoal e salário médio | Anual | `/cempre` |
-| **CNPJ** | RFB | Empresas ativas, aberturas, MEI, Simples | Mensal | `/rfb` |
-| **Municípios** | IBGE | Dados de localidades | — | `/ibge` |
+| **CAGED** | Ministry of Labor (MTE) | Hires, layoffs and net jobs by sector | Monthly | `/caged` |
+| **CEMPRE** | IBGE | Business units, headcount and average wage | Yearly | `/cempre` |
+| **CNPJ** | Federal Revenue (RFB) | Active companies, openings, MEI, Simples | Monthly | `/rfb` |
+| **Municipalities** | IBGE | Location data | — | `/ibge` |
 
-## Arquitetura
+## Architecture
 
-Cada fonte passa pelo mesmo caminho, em arquivos separados:
+Every source follows the same path, in its own files:
 
 ```text
-Fonte oficial ─▶ Collector ─▶ Transformer ─▶ Repositório ─▶ PostgreSQL ─▶ API
- (download)      baixa o      limpa e        grava com                FastAPI
-                 arquivo      padroniza      upsert
-                                                 ▲
-              Scheduler (APScheduler, cron) roda as atualizações sozinho
+Official source ─▶ Collector ─▶ Transformer ─▶ Repository ─▶ PostgreSQL ─▶ API
+  (download)       fetches the   cleans and     writes with               FastAPI
+                   file          standardizes   upsert
+                                                    ▲
+            Scheduler (APScheduler, cron) runs the updates on its own
 ```
 
-**Decisões que tomei:**
+**Decisions I made:**
 
-- **Falha isolada:** CAGED, CEMPRE e RFB vivem nos próprios arquivos, inclusive
-  os modelos do banco (`src/database/models/`, um arquivo por fonte). Os
-  routers do CEMPRE e da RFB são registrados dentro de um `try`: se uma fonte
-  quebrar, a API sobe sem ela e as outras continuam no ar.
-- **Scheduler em processo próprio:** os jobs agendados rodam num container
-  separado da API. Assim os 4 workers do Gunicorn não executam o mesmo job
-  4 vezes.
-- **Upsert em vez de insert:** rodar a mesma carga de novo atualiza os
-  registros sem duplicar dados.
-- **Banco versionado:** toda mudança de tabela passa por uma migration do
-  Alembic.
-- **Configuração tipada:** variáveis de ambiente lidas com
-  `pydantic-settings`, nada de senha no código.
-- **Sem dados pessoais:** a RFB é gravada agregada por competência e setor,
-  nunca empresa por empresa, e o arquivo de sócios não é usado.
+- **Isolated failures:** CAGED, CEMPRE and RFB live in their own files,
+  including the database models (`src/database/models/`, one file per source).
+  The CEMPRE and RFB routers are registered inside a `try`: if one source
+  breaks, the API starts without it and the others stay online.
+- **Scheduler in its own process:** scheduled jobs run in a container separate
+  from the API, so Gunicorn's 4 workers don't run the same job 4 times.
+- **Upsert instead of insert:** running the same load again updates records
+  without duplicating data.
+- **Versioned schema:** every table change goes through an Alembic migration.
+- **Typed configuration:** environment variables are read with
+  `pydantic-settings`; no passwords in the code.
+- **No personal data:** RFB data is stored aggregated by period and sector,
+  never company by company, and the partners file is not used.
 
-O histórico completo das decisões está em
-[`docs/historico_arquitetonico.md`](docs/historico_arquitetonico.md).
+The full decision log is in
+[`docs/historico_arquitetonico.md`](docs/historico_arquitetonico.md) (Portuguese).
 
-## Tecnologias
+## Tech stack
 
-| Camada | Ferramentas |
+| Layer | Tools |
 | --- | --- |
 | API | FastAPI, Pydantic, Uvicorn, Gunicorn |
-| Dados | Pandas, SQLAlchemy, PostgreSQL, Alembic, py7zr |
-| Agendamento | APScheduler (gatilho cron) |
-| Qualidade | pytest, Ruff, Black, mypy, GitHub Actions |
-| Infra | Docker (multi-stage, usuário não-root), Docker Compose, uv |
+| Data | Pandas, SQLAlchemy, PostgreSQL, Alembic, py7zr |
+| Scheduling | APScheduler (cron trigger) |
+| Quality | pytest, Ruff, Black, mypy, GitHub Actions |
+| Infra | Docker (multi-stage, non-root user), Docker Compose, uv |
 
-## Endpoints principais
+## Main endpoints
 
-| Método | Rota | Descrição |
+| Method | Route | Description |
 | --- | --- | --- |
-| `GET` | `/docs` | Swagger com todas as rotas |
-| `GET` | `/health` | Status da aplicação e do banco |
-| `GET` | `/caged/` | CAGED (filtros: `competencia`, `setor`) |
-| `POST` | `/caged/` · `/caged/bulk` | Cria ou atualiza um ou vários registros |
-| `GET` | `/cempre/` | CEMPRE (filtros: `ano`, `setor`, `incluir_total`) |
-| `GET` | `/rfb/` | RFB (filtros: `competencia`, `setor`, `incluir_total`) |
-| `GET` | `/{fonte}/stats/resumo` | Resumo de `caged`, `cempre` ou `rfb` |
-| `GET` | `/ibge/municipios` | Municípios do IBGE |
+| `GET` | `/docs` | Swagger with every route |
+| `GET` | `/health` | Application and database status |
+| `GET` | `/caged/` | CAGED (filters: `competencia`, `setor`) |
+| `POST` | `/caged/` · `/caged/bulk` | Creates or updates one or many records |
+| `GET` | `/cempre/` | CEMPRE (filters: `ano`, `setor`, `incluir_total`) |
+| `GET` | `/rfb/` | RFB (filters: `competencia`, `setor`, `incluir_total`) |
+| `GET` | `/{source}/stats/resumo` | Summary for `caged`, `cempre` or `rfb` |
+| `GET` | `/ibge/municipios` | IBGE municipalities |
 
-## Como rodar
+## Running it
 
-### Com Docker (mais rápido)
+### With Docker (fastest)
 
 ```bash
-cp .env.example .env.docker   # preencha com os dados do seu PostgreSQL
+cp .env.example .env.docker   # fill in your PostgreSQL settings
 docker compose up --build
 ```
 
-Sobem dois containers da mesma imagem: a **API** em
-`http://localhost:8000/docs` e o **scheduler** com os jobs agendados.
+Two containers start from the same image: the **API** at
+`http://localhost:8000/docs` and the **scheduler** with the scheduled jobs.
 
-### Localmente
+### Locally
 
-Com o PostgreSQL rodando e o `.env` configurado a partir do `.env.example`:
+With PostgreSQL running and `.env` set up from `.env.example`:
 
 ```bash
-uv sync                          # instala as dependências
-uv run alembic upgrade head      # cria/atualiza as tabelas
+uv sync                          # install dependencies
+uv run alembic upgrade head      # create/update tables
 
-# carrega os dados
+# load the data
 uv run python -c "from src.services.atualizacao_caged import \
 atualizar_caged; atualizar_caged(ano=2026, mes=6)"
 uv run python -m src.services.atualizacao_cempre 2022 2023 2024
-uv run python -m src.services.atualizacao_rfb    # competência mais recente
+uv run python -m src.services.atualizacao_rfb    # latest period
 
-uv run uvicorn src.api.app:app --reload   # sobe a API
+uv run uvicorn src.api.app:app --reload   # start the API
 ```
 
-A carga da RFB baixa vários GB da Receita Federal e leva cerca de 1h30.
-Competências específicas: `atualizacao_rfb 2026-09 2026-10`; para
-reprocessar uma competência que já está no banco, acrescente `--forcar`.
+The RFB load downloads several GB from the Federal Revenue and takes about
+1h30. Specific periods: `atualizacao_rfb 2026-09 2026-10`; to reprocess a period
+that is already in the database, add `--forcar`.
 
-Guia completo, passo a passo:
+Full step-by-step guide (Portuguese):
 [`docs/COMO_RODAR_O_PROJETO.md`](docs/COMO_RODAR_O_PROJETO.md).
 
-## Testes
+## Tests
 
 ```bash
 uv run pytest -q
 ```
 
-Os testes cobrem as rotas do CAGED e do CEMPRE, o collector do CAGED, o
-health check e o transformer do CEMPRE. O GitHub Actions roda o Ruff e os
-testes a cada push e pull request no `master`; com aviso do Ruff, o CI falha.
+The tests cover the CAGED, CEMPRE and RFB routes, the CAGED collector, the
+health check and the CEMPRE and RFB transformers. GitHub Actions runs Ruff and
+the tests on every push and pull request to `master`; any Ruff warning fails
+the build.
 
-## Estrutura
+## Project structure
 
 ```text
 src/
-├── api/            # app FastAPI e routers (caged, cempre, rfb, ibge)
-├── collectors/     # download dos dados de cada fonte
-├── transformers/   # limpeza e padronização
-├── database/       # conexão, repositórios e models/ (um arquivo por fonte)
-├── schemas/        # validação com Pydantic
-├── services/       # fluxo completo de atualização de cada fonte
-├── scheduler/      # jobs agendados
-└── core/           # configurações e logging
-alembic/            # migrations do banco
-tests/              # testes com pytest
-docs/               # integrações, como rodar, backlog e histórico
+├── api/            # FastAPI app and routers (caged, cempre, rfb, ibge)
+├── collectors/     # downloads each source's data
+├── transformers/   # cleaning and standardization
+├── database/       # connection, repositories and models/ (one file per source)
+├── schemas/        # Pydantic validation
+├── services/       # full update flow for each source
+├── scheduler/      # scheduled jobs
+└── core/           # settings and logging
+alembic/            # database migrations
+tests/              # pytest tests
+docs/               # integrations, how to run, backlog and decision log
 ```
 
-## Próximos passos
+## Roadmap
 
-- [ ] Testes do transformer e do router da RFB
-- [ ] Deploy público com link
+- [ ] API key authentication on write endpoints (`POST` and `DELETE`)
+- [ ] Tests for the collectors, services and scheduler
+- [ ] Natural-language questions about Joinville's economy with an LLM agent (tool calling over this API)
+- [ ] Public deployment with a link
 
-## Documentação
+## Documentation (Portuguese)
 
-- [`docs/COMO_RODAR_O_PROJETO.md`](docs/COMO_RODAR_O_PROJETO.md): instalação e
-  execução
-- [`docs/CEMPRE_API.md`](docs/CEMPRE_API.md): integração do CEMPRE
-- [`docs/RFB_API.md`](docs/RFB_API.md): integração da RFB
-- [`docs/BACKLOG.md`](docs/BACKLOG.md): evolução técnica e pendências
+- [`docs/COMO_RODAR_O_PROJETO.md`](docs/COMO_RODAR_O_PROJETO.md): setup and
+  running
+- [`docs/CEMPRE_API.md`](docs/CEMPRE_API.md): CEMPRE integration
+- [`docs/RFB_API.md`](docs/RFB_API.md): RFB integration
+- [`docs/BACKLOG.md`](docs/BACKLOG.md): technical evolution and open items
 - [`docs/historico_arquitetonico.md`](docs/historico_arquitetonico.md):
-  decisões de arquitetura
+  architecture decisions
 
-## Autor
+## Author
 
-**Vitor Rogge Renner**, estudante de Engenharia de Software e estagiário de
-back-end Python.
+**Vitor Rogge Renner**, Software Engineering student at UNIVILLE and
+undergraduate researcher in Python back-end and data.
 [LinkedIn](https://www.linkedin.com/in/vitor-rogge-renner-5367b82b8) ·
 [GitHub](https://github.com/VitorRenner)
