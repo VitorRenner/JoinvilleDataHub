@@ -37,14 +37,14 @@ I use AI coding agents (Claude Code) as a pair programmer for:
 
 AI output goes through the same filters as any other code:
 
-1. **Tests.** 58 automated tests, and new behavior comes with new tests.
+1. **Tests.** 95 automated tests, and new behavior comes with new tests.
 2. **CI.** GitHub Actions runs Ruff and Pytest on every push and pull request.
    A lint warning fails the build.
 3. **Pull requests.** Today every change goes through a branch and a PR, with
    CI as the gate. Early on I committed straight to `master`, and moving to
    PRs was one of the first habits I fixed.
-4. **No secrets in prompts.** Credentials stay in `.env` and are never pasted
-   into a conversation with the agent.
+4. **Secrets stay out of the code.** Credentials live only in `.env`, which is
+   never committed. If a key ever ends up in a chat or a log, it gets rotated.
 5. **Claims checked against the code.** If the README says "3 ETL pipelines",
    I've counted them in the scheduler.
 
@@ -58,6 +58,25 @@ because those routes had never been tested.
 
 To me, this is the healthiest way to use AI: it speeds up writing the tests,
 the tests catch real problems, and I decide how to fix them.
+
+## AI inside the product
+
+AI is also part of the product itself. `POST /perguntar` answers questions
+about Joinville's economy in plain Portuguese, using an LLM agent (Gemini). I
+held it to the same standard as the rest of the code:
+
+- **The model chooses, the code acts.** Gemini only picks one of 4 read-only
+  tools. Our code validates the arguments and runs the query, with no
+  free-form SQL and no writes.
+- **Graded against the real data.** A [20-question evaluation set](AGENT_EVAL.md)
+  computes the expected answers from the database at run time, including
+  questions the agent should decline and a prompt-injection attempt.
+- **Tested without the model.** All agent tests use a fake model, so CI is free,
+  fast and deterministic.
+- **The model was picked by measurement, not by name.** The first choice
+  (`gemini-2.5-flash`) was closed to new accounts, and the newest one took over
+  100 seconds per call. In the same quick check, the default took about 8
+  seconds.
 
 ## What AI is not
 

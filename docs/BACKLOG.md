@@ -397,6 +397,41 @@ de software.
 - O commit `0cdd50a` do histórico tem um `.env` com a senha de um Postgres
   local já trocada. Histórico não reescrito.
 
+## Sessão 17 (19/11/2026) — Agente /perguntar com LLM (v1.2.0)
+
+### Concluído
+
+- `POST /perguntar`: perguntas em português respondidas por um agente com
+  Gemini (`google-genai`) usando tool calling manual sobre 4 ferramentas só de
+  leitura (`listar_periodos`, `consultar_caged`, `consultar_cempre`,
+  `consultar_rfb`) em `src/agent/`.
+- Ferramentas padronizam setores pela seção CNAE (o CAGED grava só a letra; o
+  CEMPRE e a RFB gravam letra + nome), validam argumentos, limitam a 60 linhas
+  e já devolvem os totais somados.
+- Guardrails: pergunta de 3 a 300 caracteres, até 5 passos, 5 perguntas por
+  minuto por IP, 200 por dia; sem `GEMINI_API_KEY` a rota fica em 503; falha
+  do provedor vira 502 genérico.
+- Conjunto de avaliação com 20 casos (16 numéricos e 4 recusas, incluindo
+  prompt injection), com gabarito calculado do banco na hora
+  (`src/agent/avaliacao.py`, `src/scripts/avaliar_agente.py`), retomável.
+- Suíte: 58 → 95 testes, todos com modelo falso (o CI não chama o LLM).
+- README, SECURITY.md, AI_USAGE.md e `.env.example` atualizados.
+
+### Problemas encontrados
+
+- `gemini-2.5-flash` não está mais disponível para contas novas (404).
+- `gemini-3.8-flash` levou mais de 100 s por chamada; `gemini-3.5-flash`
+  respondeu em ~8 s e virou o padrão.
+- Os modelos atuais não aceitam o papel `tool`: as respostas das ferramentas
+  voltam com o papel `user`.
+- Cota gratuita: 5 pedidos por minuto e 20 por dia por modelo. A avaliação
+  completa (~40 pedidos) precisa de 2 dias no plano gratuito; parcial: 9/9.
+- Revisão independente: CAGED sem período devolvia os meses mais antigos
+  (agora usa o mais recente e separa totais por mês); `truncado` errado no
+  limite exato; avaliador aceitava saldo com sinal trocado e recusa que chutava
+  número; IPs nunca saíam da memória do limitador; erro de banco numa
+  ferramenta virava 500. Todos corrigidos e com teste.
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -431,7 +466,9 @@ de software.
       obrigatório no CI.
 - [x] Mover o `RFB_SHARE_TOKEN` do `settings.py` para o `.env`.
 - [x] Autenticação das rotas de escrita com token de uso único.
-- [ ] Rate limiting nas rotas públicas.
+- [ ] Rate limiting nas rotas públicas de dados.
+- [ ] Limites do agente em armazenamento compartilhado (Redis), não por processo.
+- [ ] Completar a avaliação do agente (casos pendentes por cota).
 - [ ] Limpeza periódica dos tokens usados ou vencidos na tabela `api_tokens`.
 - [ ] Avaliar reprocessar as últimas 2–3 competências da RFB a cada execução
       (aberturas do mês mais recente vêm subestimadas).
@@ -502,3 +539,4 @@ e internacionais.
 | 16/11/2026 | v0.4.4 | Avisos do Ruff zerados e lint obrigatório no CI. |
 | 19/11/2026 | v1.0.0 | Configurações centralizadas no settings, CORS pelo `.env` e P0 concluído: primeira versão estável do servidor. |
 | 19/11/2026 | v1.1.0 | Segurança: token de uso único nas rotas de escrita, validação de entrada, CORS fechado, SECURITY.md e AI_USAGE.md. |
+| 19/11/2026 | v1.2.0 | Agente `/perguntar` com Gemini, ferramentas só de leitura, guardrails e conjunto de avaliação. |

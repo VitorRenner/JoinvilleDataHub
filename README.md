@@ -21,6 +21,7 @@ end: architecture, data, API, automation and infrastructure.
 
 | | |
 | --- | --- |
+| 🤖 **AI** | `POST /perguntar` answers questions in plain Portuguese with an LLM agent (Gemini) that can only call read-only tools over this data, with an evaluation set measured against the real database ([details](#ask-in-plain-language)) |
 | 🔌 **API** | One FastAPI REST service with 4 data domains (CAGED, CEMPRE, CNPJ and IBGE municipalities), Pydantic validation and Swagger at `/docs` |
 | ⚙️ **Automation** | 3 scheduled ETL pipelines (CAGED, CEMPRE and Federal Revenue) that run with no manual steps, in a process separate from the API |
 | 🗄️ **Data** | PostgreSQL with SQLAlchemy, 5 versioned Alembic migrations and idempotent loads (upsert): re-running a load updates rows instead of duplicating them |
@@ -28,7 +29,7 @@ end: architecture, data, API, automation and infrastructure.
 | 🔐 **Security** | Reads are public, writes need a single-use token that only the server can issue: it expires in minutes, is stored as a hash and never works twice. Strict input validation and locked-down CORS ([SECURITY.md](SECURITY.md)) |
 | 🔒 **Privacy** | Federal Revenue data is stored only in aggregate, never company by company; the partners file is not used |
 | 🐳 **Infra** | Multi-stage Docker running as non-root, Compose with the API and the scheduler in separate containers, a dedicated server feeding the Nexus website; migration to Google Cloud in progress |
-| ✅ **Quality** | 58 Pytest tests, Ruff and GitHub Actions on every push and pull request |
+| ✅ **Quality** | 95 Pytest tests, Ruff and GitHub Actions on every push and pull request |
 
 > **How this project was built:** I defined the problem, the data sources, the
 > data model and the architecture, and drove every decision (logged in
@@ -102,6 +103,7 @@ The full decision log is in
 | `GET` | `/rfb/` | RFB (filters: `competencia`, `setor`, `incluir_total`) |
 | `GET` | `/{source}/stats/resumo` | Summary for `caged`, `cempre` or `rfb` |
 | `GET` | `/ibge/municipios` | IBGE municipalities |
+| `POST` | `/perguntar` | Question in plain Portuguese, answered by the LLM agent 🤖 |
 
 🔐 Needs a single-use token in the `X-API-Token` header. Tokens are issued only
 on the server:
@@ -111,6 +113,52 @@ uv run python -m src.scripts.gerar_token --descricao "manual CAGED fix"
 ```
 
 Details in [SECURITY.md](SECURITY.md).
+
+## Ask in plain language
+
+```bash
+curl -X POST http://localhost:8000/perguntar \
+  -H "Content-Type: application/json" \
+  -d '{"pergunta": "Qual foi o saldo de empregos formais em Joinville em junho de 2026?"}'
+```
+
+```json
+{
+  "resposta": "Em junho de 2026, Joinville registrou um saldo positivo de 254 empregos formais. No período, foram contabilizadas 14.223 admissões e 13.969 demissões. Os dados são provenientes do Novo CAGED (Ministério do Trabalho).",
+  "consultas": [{"ferramenta": "consultar_caged", "argumentos": {"competencia": "202606"}, "erro": null}],
+  "modelo": "gemini-3.5-flash",
+  ...
+}
+```
+
+How it works:
+
+```text
+Question ─▶ Gemini picks a tool ─▶ our code runs a read-only query ─▶ data back to Gemini ─▶ answer
+             (tool calling)        (validated args, row cap)
+```
+
+- **The model never touches the database.** It can only pick one of 4 read-only
+  tools (`listar_periodos`, `consultar_caged`, `consultar_cempre`,
+  `consultar_rfb`). Our code validates the arguments, runs the query and caps
+  the rows. There's no free-form SQL and no writes.
+- **No made-up numbers.** The tools return totals that are already summed, and
+  the instructions require answers based only on tool data, with the source
+  and period. When the data doesn't exist, the agent says so.
+- **Measured, not assumed.** Every answer reports the queries it ran, tokens
+  and latency. An [evaluation set](docs/AGENT_EVAL.md) of 20 questions (15
+  numeric, 1 that asks for a sector name and 4 that should be declined,
+  including a prompt injection) is graded against answers computed from the real database.
+- **Guardrails on cost.** Questions are capped at 300 characters and 5
+  model ↔ tool steps, with per-IP and daily limits. Without `GEMINI_API_KEY`,
+  the route is off (`503`).
+- **Model picked by measurement.** `gemini-2.5-flash` turned out to be closed
+  to new accounts, and `gemini-3.8-flash` took over 100 s per call in testing.
+  In the same quick check, `gemini-3.5-flash` took about 8 s, so it's the default (configurable
+  with `GEMINI_MODEL`).
+
+All agent tests use a fake model, so CI never calls the LLM. To run the
+evaluation against the real model: `uv run python -m src.scripts.avaliar_agente`.
 
 ## Running it
 
@@ -156,7 +204,9 @@ uv run pytest -q
 
 The tests cover the CAGED, CEMPRE and RFB routes, the CAGED collector, the
 health check, the CEMPRE and RFB transformers, and security: single-use tokens
-(reuse, expiry, missing or unknown token), input validation and CORS.
+(reuse, expiry, missing or unknown token), input validation, CORS, and the
+LLM agent (tools, loop, step limit, error handling, rate limits) with a fake
+model.
 GitHub Actions runs Ruff and
 the tests on every push and pull request to `master`; any Ruff warning fails
 the build.
@@ -165,7 +215,8 @@ the build.
 
 ```text
 src/
-├── api/            # FastAPI app and routers (caged, cempre, rfb, ibge)
+├── agent/          # LLM agent: read-only tools, loop, limits and evaluation set
+├── api/            # FastAPI app and routers (caged, cempre, rfb, ibge, perguntar)
 ├── collectors/     # downloads each source's data
 ├── transformers/   # cleaning and standardization
 ├── database/       # connection, repositories and models/ (one file per source)
@@ -183,7 +234,8 @@ docs/               # integrations, how to run, backlog and decision log
 - [x] Single-use token authentication on write endpoints (`POST` and `DELETE`)
 - [ ] Rate limiting on public routes
 - [ ] Tests for the collectors, services and scheduler
-- [ ] Natural-language questions about Joinville's economy with an LLM agent (tool calling over this API)
+- [x] Natural-language questions about Joinville's economy with an LLM agent (tool calling over this API)
+- [ ] RAG over the project documentation (methodology questions, not just numbers)
 - [ ] Public deployment with a link
 
 ## Documentation
