@@ -105,6 +105,26 @@ except Exception:
     )
 
 
+# Registro protegido do agente: falha no SDK do LLM não derruba os dados.
+AGENTE_DISPONIVEL = False
+
+try:
+    from src.api.routers import agente
+
+    app.include_router(
+        agente.router,
+        prefix="/perguntar",
+        tags=["Agente (IA)"],
+    )
+
+    AGENTE_DISPONIVEL = True
+
+except Exception:
+    logger.exception(
+        "Router do agente indisponível. A API segue sem a rota /perguntar.",
+    )
+
+
 @app.get(
     "/",
     summary="Informações da API",
@@ -124,6 +144,9 @@ def root() -> dict:
 
     if RFB_DISPONIVEL:
         endpoints["rfb"] = "/rfb"
+
+    if AGENTE_DISPONIVEL:
+        endpoints["perguntar"] = "/perguntar"
 
     return {
         "name": API_TITLE,

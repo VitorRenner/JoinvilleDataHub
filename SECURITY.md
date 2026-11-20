@@ -107,13 +107,38 @@ data, is never downloaded.
 - The `/health` check reports whether the database is reachable, without
   exposing connection details.
 
+## LLM agent (`POST /perguntar`)
+
+The agent is public like the read routes, so it's built to be safe even when
+someone tries to misuse it:
+
+- **Read-only by design.** The model can only choose from 4 read-only tools.
+  Our code runs the queries with validated arguments (period format, CNAE
+  section A to U) and a 60-row cap. Unknown tools, extra arguments and bad
+  formats come back to the model as errors, never as exceptions.
+- **Prompt injection.** The system instructions tell the model to ignore
+  instructions inside the question, and the evaluation set includes an
+  injection attempt. Even if the model were tricked, the worst it could do is
+  read public data, because no tool can write.
+- **Cost and abuse limits.** Questions are 3 to 300 characters, with at most 5
+  model ↔ tool steps per question, 5 questions per minute per IP and 200 per
+  day in total. The limits live in memory, per process (see below).
+- **Off without a key.** If `GEMINI_API_KEY` isn't set, the route returns
+  `503`. The key comes only from `.env`.
+- **No leaks in errors.** If the model provider fails, the client gets a
+  generic `502`. Details go only to the server log.
+
 ## Known limitations and next steps
 
 Being upfront about what isn't done yet:
 
+- **Agent limits are in memory, per process.** With 4 Gunicorn workers the
+  effective ceiling is 4 times higher, and behind a proxy every client shares
+  one IP unless the proxy passes the real one. A shared store (for example
+  Redis) is the next step.
 - **HTTPS** is expected to come from the reverse proxy or the cloud platform
   in deployment. The app itself serves plain HTTP.
-- **No rate limiting yet.** Brute-forcing a token isn't realistic (each one
+- **No rate limiting on the data routes yet** (only on `/perguntar`). Brute-forcing a token isn't realistic (each one
   has 256 random bits), but rate limiting is still on the roadmap to protect
   the public read routes.
 - **Used and expired tokens stay in the table.** They can't be used again,

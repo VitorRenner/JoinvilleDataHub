@@ -7,13 +7,29 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     API_TITLE: str = "Joinville Data Hub"
-    API_VERSION: str = "1.1.0"
+    API_VERSION: str = "1.2.0"
     API_DESCRIPTION: str = (
         "API de dados públicos de Joinville/SC: "
         "CAGED (emprego), CEMPRE/IBGE (empresas e salários) e RFB (CNPJ)."
     )
 
     DATABASE_URL: str  # sem padrão -> vem obrigatoriamente do .env
+
+    # ------------------------- Agente /perguntar (LLM) -------------------------
+    # Vazio = rota /perguntar desligada (503). A chave vem só do .env.
+    GEMINI_API_KEY: str = ""
+    # Lite: mesma resposta nos testes manuais, ~2 s contra ~2 min do flash
+    # (escolher ferramenta e resumir números não pede o modelo maior)
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    # Teto de idas e voltas modelo -> ferramenta por pergunta
+    AGENTE_MAX_PASSOS: int = 5
+    # Raciocínio interno do modelo (Gemini 3.x): minimal, low, medium, high.
+    # Escolher ferramenta e resumir números não pede raciocínio longo; "low"
+    # corta a latência. Vazio = padrão do modelo (modelos 2.5 não aceitam).
+    AGENTE_THINKING_LEVEL: str = "low"
+    # Cada pergunta custa uma chamada paga ao LLM: limites contra abuso
+    AGENTE_LIMITE_POR_MINUTO: int = 5
+    AGENTE_LIMITE_DIARIO: int = 200
 
     # Novo CAGED: microdados no FTP do Ministério do Trabalho
     CAGED_FTP_HOST: str = "ftp.mtps.gov.br"

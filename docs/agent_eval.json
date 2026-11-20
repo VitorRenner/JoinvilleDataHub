@@ -1,0 +1,83 @@
+{
+  "Qual foi o saldo de empregos formais em Joinville em junho de 2026?": {
+    "ok": true,
+    "esperado": 254,
+    "resposta": "Em junho de 2026, Joinville registrou um saldo positivo de 254 empregos formais. No período, foram contabilizadas 14.223 admissões e 13.969 demissões. Os dados são provenientes do Novo CAGED (Ministério do Trabalho).",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Quantas admissões houve em Joinville em maio de 2026?": {
+    "ok": true,
+    "esperado": 14370,
+    "resposta": "Em maio de 2026, Joinville registrou 14.370 admissões de empregos formais, de acordo com dados do Novo CAGED (Ministério do Trabalho). No mesmo mês, o município contabilizou 14.441 demissões, gerando um saldo de -71 postos de trabalho.",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Quantas demissões a indústria de transformação teve em junho de 2026?": {
+    "ok": true,
+    "esperado": 3194,
+    "resposta": "Em junho de 2026, a indústria de transformação em Joinville registrou 3.194 demissões. No mesmo período, o setor teve 3.749 admissões, resultando em um saldo positivo de 555 empregos formais. Os dados são do Novo CAGED (Ministério do Trabalho e Emprego).",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Qual foi o saldo de empregos do comércio em setembro de 2026?": {
+    "ok": true,
+    "esperado": -101,
+    "resposta": "Em setembro de 2026, o setor de comércio em Joinville (Seção G da CNAE) registrou um saldo de -101 empregos formais. No período, foram contabilizadas 2.718 admissões e 2.819 demissões no setor. Os dados são do Novo CAGED (Ministério do Trabalho).",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Qual foi o saldo de empregos da construção em maio de 2026?": {
+    "ok": true,
+    "esperado": -201,
+    "resposta": "Em maio de 2026, o setor da Construção (Seção F) registrou um saldo de -201 empregos formais em Joinville. No período, foram contabilizadas 757 admissões e 958 demissões no setor. Os dados são do Novo CAGED (Ministério do Trabalho).",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Qual setor mais gerou empregos em Joinville em junho de 2026?": {
+    "ok": true,
+    "esperado": "Indústrias de transformação",
+    "resposta": "Em junho de 2026, o setor que mais gerou empregos formais em Joinville foi o de Indústrias de Transformação (seção C). O setor registrou um saldo positivo de 555 postos de trabalho, resultantes de 3.749 admissões e 3.194 demissões. Os dados são do Novo CAGED (Ministério do Trabalho).",
+    "ferramentas": "consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Qual o saldo de empregos mais recente disponível para Joinville?": {
+    "ok": true,
+    "esperado": 53,
+    "resposta": "No período mais recente disponível no Joinville Data Hub, que é setembro de 2026 (competência 202609), Joinville registrou um saldo positivo de 53 empregos formais. Segundo dados oficiais do Novo CAGED (Ministério do Trabalho), foram realizadas 14.329 admissões e 14.276 demissões no mês.",
+    "ferramentas": "listar_periodos, consultar_caged",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Quantas unidades locais a indústria de transformação tinha em 2023?": {
+    "ok": true,
+    "esperado": 3661,
+    "resposta": "Segundo dados do CEMPRE/IBGE, a indústria de transformação em Joinville contava com 3.661 unidades locais em 2023. No mesmo período, o setor somava 75.964 pessoas ocupadas, com um salário médio mensal de R$ 4.265,02.",
+    "ferramentas": "consultar_cempre",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  },
+  "Qual era o salário médio na indústria de transformação em 2024?": {
+    "ok": true,
+    "esperado": 4494.44,
+    "resposta": "Segundo dados do CEMPRE (IBGE), em 2024, o salário médio mensal na indústria de transformação em Joinville foi de R$ 4.494,44. Nesse período, o setor reuniu 3.847 unidades locais e registrou 78.778 pessoas ocupadas.",
+    "ferramentas": "listar_periodos, consultar_cempre",
+    "modelo": "gemini-3.5-flash",
+    "latencia_ms": null,
+    "tokens": null
+  }
+}
