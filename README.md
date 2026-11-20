@@ -21,7 +21,7 @@ end: architecture, data, API, automation and infrastructure.
 
 | | |
 | --- | --- |
-| 🤖 **AI** | `POST /perguntar` answers questions in plain Portuguese with an LLM agent (Gemini) that can only call read-only tools over this data, with an evaluation set measured against the real database ([details](#ask-in-plain-language)) |
+| 🤖 **AI** | `POST /perguntar` answers questions in plain Portuguese with an LLM agent (Gemini) that can only call read-only tools over this data, with an evaluation set measured against the real database. Answers in about 2 s ([details](#ask-in-plain-language)) |
 | 🔌 **API** | One FastAPI REST service with 4 data domains (CAGED, CEMPRE, CNPJ and IBGE municipalities), Pydantic validation and Swagger at `/docs` |
 | ⚙️ **Automation** | 3 scheduled ETL pipelines (CAGED, CEMPRE and Federal Revenue) that run with no manual steps, in a process separate from the API |
 | 🗄️ **Data** | PostgreSQL with SQLAlchemy, 5 versioned Alembic migrations and idempotent loads (upsert): re-running a load updates rows instead of duplicating them |
@@ -29,7 +29,7 @@ end: architecture, data, API, automation and infrastructure.
 | 🔐 **Security** | Reads are public, writes need a single-use token that only the server can issue: it expires in minutes, is stored as a hash and never works twice. Strict input validation and locked-down CORS ([SECURITY.md](SECURITY.md)) |
 | 🔒 **Privacy** | Federal Revenue data is stored only in aggregate, never company by company; the partners file is not used |
 | 🐳 **Infra** | Multi-stage Docker running as non-root, Compose with the API and the scheduler in separate containers, a dedicated server feeding the Nexus website; migration to Google Cloud in progress |
-| ✅ **Quality** | 95 Pytest tests, Ruff and GitHub Actions on every push and pull request |
+| ✅ **Quality** | 98 Pytest tests, Ruff and GitHub Actions on every push and pull request |
 
 > **How this project was built:** I defined the problem, the data sources, the
 > data model and the architecture, and drove every decision (logged in
@@ -119,15 +119,17 @@ Details in [SECURITY.md](SECURITY.md).
 ```bash
 curl -X POST http://localhost:8000/perguntar \
   -H "Content-Type: application/json" \
-  -d '{"pergunta": "Qual foi o saldo de empregos formais em Joinville em junho de 2026?"}'
+  -d '{"pergunta": "Qual setor mais gerou empregos em Joinville no último mês disponível?"}'
 ```
 
 ```json
 {
-  "resposta": "Em junho de 2026, Joinville registrou um saldo positivo de 254 empregos formais. No período, foram contabilizadas 14.223 admissões e 13.969 demissões. Os dados são provenientes do Novo CAGED (Ministério do Trabalho).",
-  "consultas": [{"ferramenta": "consultar_caged", "argumentos": {"competencia": "202606"}, "erro": null}],
-  "modelo": "gemini-3.5-flash",
-  ...
+  "resposta": "No último mês disponível (setembro de 2026), o setor que mais gerou empregos em Joinville foi \"Atividades administrativas e serviços complementares\", com um saldo de 132 empregos (4.153 admissões e 4.021 demissões). A fonte dos dados é o Novo CAGED.",
+  "consultas": [{"ferramenta": "consultar_caged", "argumentos": {"competencia": "202609"}, "erro": null}],
+  "modelo": "gemini-3.5-flash-lite",
+  "tokens_entrada": 3455,
+  "tokens_saida": 98,
+  "latencia_ms": 1951
 }
 ```
 
@@ -152,10 +154,17 @@ Question ─▶ Gemini picks a tool ─▶ our code runs a read-only query ─�
 - **Guardrails on cost.** Questions are capped at 300 characters and 5
   model ↔ tool steps, with per-IP and daily limits. Without `GEMINI_API_KEY`,
   the route is off (`503`).
-- **Model picked by measurement.** `gemini-2.5-flash` turned out to be closed
-  to new accounts, and `gemini-3.8-flash` took over 100 s per call in testing.
-  In the same quick check, `gemini-3.5-flash` took about 8 s, so it's the default (configurable
-  with `GEMINI_MODEL`).
+- **Latency cut from ~3 min to ~2 s.** The same question took 174 s at first.
+  Three changes, each measured in Docker:
+  - The available periods now go with the question, so the model no longer
+    spends a full round trip calling `listar_periodos` (174 s → 129 s).
+  - Model reasoning is capped with `thinking_level` (`AGENTE_THINKING_LEVEL`,
+    default `low`).
+  - The default model is `gemini-3.5-flash-lite` (configurable with
+    `GEMINI_MODEL`): the same answer in about 2 s, and an out-of-scope
+    question declined in about 1 s with zero queries. The
+    [evaluation report](docs/AGENT_EVAL.md) was last run with
+    `gemini-3.5-flash`; a full run with the lite model is next.
 
 All agent tests use a fake model, so CI never calls the LLM. To run the
 evaluation against the real model: `uv run python -m src.scripts.avaliar_agente`.
@@ -258,5 +267,5 @@ In Portuguese:
 
 **Vitor Rogge Renner**, Software Engineering student at UNIVILLE and
 undergraduate researcher in Python back-end and data.
-[LinkedIn](https://www.linkedin.com/in/vitor-rogge-renner-5367b82b8) ·
+[LinkedIn](https://www.linkedin.com/in/vitor-rogge-renner/) ·
 [GitHub](https://github.com/VitorRenner)
