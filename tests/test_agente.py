@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from google.genai import types
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.agent import ferramentas
 from src.agent.agente import Agente, AgenteIndisponivel
@@ -258,6 +259,38 @@ def test_agente_usa_ferramenta_e_responde(db):
     assert resposta_ferramenta["totais_por_competencia"]["202606"]["saldo"] == 150
     # Respostas de ferramenta voltam com role "user" (o Gemini recusa "tool")
     assert ultima_chamada[-1].role == "user"
+
+
+def test_agente_manda_periodos_no_contexto(db):
+    modelo = ModeloFalso([_resposta_texto("ok")])
+    Agente(cliente=modelo, modelo="falso").perguntar(db, "Qual o saldo?")
+
+    # Os períodos chegam na primeira mensagem, sem gastar uma ida ao modelo
+    partes = modelo.chamadas[0][0].parts
+    assert "202606" in partes[0].text
+    assert "2026-10" in partes[0].text
+    # A pergunta continua separada e por último
+    assert partes[-1].text == "Qual o saldo?"
+
+
+def test_agente_segue_sem_contexto_se_o_banco_falhar(db, monkeypatch):
+    def quebra(_db):
+        raise SQLAlchemyError("banco fora")
+
+    monkeypatch.setitem(ferramentas.FERRAMENTAS, "listar_periodos", quebra)
+    modelo = ModeloFalso([_resposta_texto("ok")])
+    resultado = Agente(cliente=modelo, modelo="falso").perguntar(db, "oi")
+
+    assert resultado.resposta == "ok"
+    assert [p.text for p in modelo.chamadas[0][0].parts] == ["oi"]
+
+
+def test_agente_limita_o_raciocinio_do_modelo():
+    agente = Agente(cliente=None, modelo="falso", thinking_level="low")
+    assert agente.config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+
+    sem_limite = Agente(cliente=None, modelo="falso")
+    assert sem_limite.config.thinking_config is None
 
 
 def test_agente_limita_consultas_por_passo(db):

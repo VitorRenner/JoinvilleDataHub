@@ -28,6 +28,7 @@ def _agente_padrao() -> Agente:
         cliente=cliente,
         modelo=settings.GEMINI_MODEL,
         max_passos=settings.AGENTE_MAX_PASSOS,
+        thinking_level=settings.AGENTE_THINKING_LEVEL or None,
     )
 
 

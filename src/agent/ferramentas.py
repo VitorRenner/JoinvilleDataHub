@@ -251,8 +251,8 @@ DECLARACOES: list[dict[str, Any]] = [
         "name": "listar_periodos",
         "description": (
             "Lista os períodos disponíveis em cada fonte e as seções CNAE. "
-            "Chame primeiro quando a pergunta não disser o período ou disser "
-            "'mais recente'."
+            "Normalmente essa lista já vem no contexto da pergunta; chame só "
+            "se o contexto não trouxer os períodos."
         ),
         "parameters_json_schema": {"type": "object", "properties": {}},
     },

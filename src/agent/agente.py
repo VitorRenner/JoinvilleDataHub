@@ -6,6 +6,7 @@ cada passo: limite de passos, registro do que foi consultado, custo e
 latência.
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -31,8 +32,9 @@ Regras:
 2. Se as ferramentas não tiverem o dado (outro município, período ausente,
    assunto fora de emprego/empresas/salários), diga claramente que não há
    esse dado no Joinville Data Hub e mostre o que existe.
-3. Se a pergunta não disser o período, use o mais recente disponível e diga
-   qual foi.
+3. Os períodos disponíveis já vêm no contexto, antes da pergunta. Se a
+   pergunta não disser o período, use o mais recente dessa lista e diga qual
+   foi. Não chame listar_periodos se o contexto já trouxer os períodos.
 4. Use os totais que as ferramentas já calculam; não faça contas próprias
    além de comparações simples.
 5. Sempre cite a fonte (CAGED, CEMPRE/IBGE ou Receita Federal) e o período.
@@ -65,14 +67,28 @@ class RespostaAgente:
 
 
 class Agente:
-    def __init__(self, cliente: Any, modelo: str, max_passos: int = 5) -> None:
+    def __init__(
+        self,
+        cliente: Any,
+        modelo: str,
+        max_passos: int = 5,
+        thinking_level: str | None = None,
+    ) -> None:
         # cliente: google.genai.Client (ou um falso, nos testes)
         self.cliente = cliente
         self.modelo = modelo
         self.max_passos = max_passos
+        # Cada chamada ao modelo era a maior parte da latência: limitar o
+        # raciocínio interno é o que mais encurta a resposta
+        thinking = (
+            types.ThinkingConfig(thinking_level=thinking_level.upper())
+            if thinking_level
+            else None
+        )
         self.config = types.GenerateContentConfig(
             system_instruction=INSTRUCOES,
             temperature=0,
+            thinking_config=thinking,
             tools=[
                 types.Tool(
                     function_declarations=[
@@ -91,7 +107,13 @@ class Agente:
         resultado = RespostaAgente(resposta="", modelo=self.modelo)
 
         historico: list[types.Content] = [
-            types.Content(role="user", parts=[types.Part.from_text(text=pergunta)]),
+            types.Content(
+                role="user",
+                parts=[
+                    *self._contexto_de_periodos(db),
+                    types.Part.from_text(text=pergunta),
+                ],
+            ),
         ]
 
         for passo in range(1, self.max_passos + 1):
@@ -164,3 +186,23 @@ class Agente:
         )
 
         return resultado
+
+    @staticmethod
+    def _contexto_de_periodos(db: Session) -> list[types.Part]:
+        """
+        Períodos disponíveis já na primeira mensagem.
+
+        Sem isso, quase toda pergunta gastava uma ida e volta inteira ao
+        modelo só para chamar listar_periodos. A consulta ao banco é
+        instantânea; a chamada ao modelo, não. Se o banco falhar, segue sem
+        contexto e o modelo ainda pode chamar a ferramenta.
+        """
+
+        periodos = ferramentas.executar(db, "listar_periodos", {})
+        if "erro" in periodos:
+            return []
+        texto = (
+            "Contexto do sistema (não é a pergunta). Períodos disponíveis e "
+            "seções CNAE: " + json.dumps(periodos, ensure_ascii=False)
+        )
+        return [types.Part.from_text(text=texto)]
