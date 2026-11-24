@@ -71,9 +71,7 @@ def upsert_caged(
     if not registros:
         return 0
 
-    stmt = insert(CagedMovimentacao).values(
-        [r.model_dump() for r in registros]
-    )
+    stmt = insert(CagedMovimentacao).values([r.model_dump() for r in registros])
     stmt = stmt.on_conflict_do_update(
         index_elements=["competencia", "setor"],
         set_={
@@ -86,6 +84,33 @@ def upsert_caged(
     result = db.execute(stmt)
     db.commit()
     return result.rowcount
+
+
+def substituir_serie_caged(
+    db: Session,
+    registros: list[CagedCreate],
+) -> int:
+    """
+    Substitui a série inteira do CAGED numa única transação.
+
+    A série é recalculada do zero a cada atualização (FOR e EXC de meses
+    novos alteram meses antigos), então apagar e regravar mantém o banco
+    igual ao cálculo, sem linha velha sobrando. Se algo falhar, o rollback
+    devolve a série anterior intacta.
+    """
+
+    if not registros:
+        raise ValueError("Série do CAGED vazia: nada foi alterado no banco.")
+
+    try:
+        db.query(CagedMovimentacao).delete()
+        db.add_all(CagedMovimentacao(**r.model_dump()) for r in registros)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return len(registros)
 
 
 def deletar_caged(

@@ -2,43 +2,32 @@ import logging
 from time import perf_counter
 
 from src.collectors.caged import CagedCollector
+from src.core.logging import configurar_logging
 from src.database.conexao import SessionLocal
-from src.database.repositorio import upsert_caged
+from src.database.repositorio import substituir_serie_caged
 from src.schemas.caged import CagedCreate
 from src.transformers.caged import (
     transformar_caged,
     validar_dados,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
-
-
 logger = logging.getLogger(__name__)
 
 LOG_SEPARATOR = "=" * 50
 
 
-def atualizar_caged(
-    ano: int | None = None,
-    mes: int | None = None,
-) -> int:
+def atualizar_caged() -> int:
     """
-    Executa o fluxo completo de atualização dos dados do CAGED.
+    Executa o fluxo completo de atualização da série do CAGED.
 
     Etapas:
-    - coleta dos dados;
-    - transformação;
-    - validação;
-    - persistência no banco.
-
-    Quando `ano`/`mes` não são informados, atualiza a competência mais
-    recente disponível na fonte oficial.
+    - lista todas as competências do Novo CAGED no FTP oficial;
+    - baixa só as que ainda não estão no cache local de Joinville;
+    - recalcula a série inteira (MOV + FOR - EXC);
+    - transforma, valida e substitui a série no banco numa única transação.
 
     Retorna:
-        Quantidade de registros processados.
+        Quantidade de registros gravados.
     """
 
     inicio_execucao = perf_counter()
@@ -48,32 +37,16 @@ def atualizar_caged(
     try:
         collector = CagedCollector()
 
-        if ano is None or mes is None:
-            ano, mes = collector.competencia_mais_recente()
-
         logger.info(LOG_SEPARATOR)
         logger.info("Iniciando atualização do CAGED.")
-        logger.info(
-            "Competência: %d/%02d",
-            ano,
-            mes,
-        )
         logger.info(LOG_SEPARATOR)
 
-        logger.info("Coletando dados do CAGED.")
+        agregados = collector.coletar()
 
-        dados_brutos = collector.coletar(
-            ano=ano,
-            mes=mes,
-        )
-
-        logger.info(
-            "Dados coletados: %d registros.",
-            len(dados_brutos),
-        )
+        competencias = sorted(agregados["competencia"].unique())
 
         registros = transformar_caged(
-            dados_brutos,
+            agregados,
         )
 
         logger.info(
@@ -92,23 +65,26 @@ def atualizar_caged(
 
         if registros_invalidos:
             logger.warning(
-                "Registros inválidos encontrados: %d.",
+                "Registros inválidos encontrados: %d. Exemplo: %s",
                 len(registros_invalidos),
+                registros_invalidos[0],
             )
 
         registros_schema = [CagedCreate(**registro) for registro in registros_validos]
 
-        processados = upsert_caged(
+        gravados = substituir_serie_caged(
             db,
             registros_schema,
         )
 
         logger.info(
-            "Persistência concluída. Registros processados: %d.",
-            processados,
+            "Série do CAGED substituída. Registros gravados: %d (%s a %s).",
+            gravados,
+            competencias[0],
+            competencias[-1],
         )
 
-        return processados
+        return gravados
 
     except Exception:
         db.rollback()
@@ -133,4 +109,5 @@ def atualizar_caged(
 
 
 if __name__ == "__main__":
+    configurar_logging()
     atualizar_caged()

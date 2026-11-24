@@ -26,7 +26,9 @@ router = APIRouter()
 def listar_caged(
     competencia: str | None = Query(
         None,
-        description="Competência no formato YYYYMM",
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Competência no formato AAAA-MM",
+        examples=["2026-09"],
     ),
     setor: str | None = Query(
         None,

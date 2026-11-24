@@ -99,27 +99,27 @@ CASOS: list[Caso] = [
     # ------------------------------ CAGED -------------------------------
     Caso(
         "Qual foi o saldo de empregos formais em Joinville em junho de 2026?",
-        _caged("saldo", "202606"),
+        _caged("saldo", "2026-06"),
     ),
     Caso(
         "Quantas admissões houve em Joinville em maio de 2026?",
-        _caged("admissoes", "202605"),
+        _caged("admissoes", "2026-05"),
     ),
     Caso(
         "Quantas demissões a indústria de transformação teve em junho de 2026?",
-        _caged("demissoes", "202606", "C"),
+        _caged("demissoes", "2026-06", "C"),
     ),
     Caso(
         "Qual foi o saldo de empregos do comércio em setembro de 2026?",
-        _caged("saldo", "202609", "G"),
+        _caged("saldo", "2026-09", "G"),
     ),
     Caso(
         "Qual foi o saldo de empregos da construção em maio de 2026?",
-        _caged("saldo", "202605", "F"),
+        _caged("saldo", "2026-05", "F"),
     ),
     Caso(
         "Qual setor mais gerou empregos em Joinville em junho de 2026?",
-        _caged_setor_que_mais_gerou("202606"),
+        _caged_setor_que_mais_gerou("2026-06"),
         tipo="texto",
     ),
     Caso(

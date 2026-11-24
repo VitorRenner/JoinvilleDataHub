@@ -29,7 +29,7 @@ class CagedMovimentacao(Base):
     )
 
     competencia: Mapped[str] = mapped_column(
-        String(6),
+        String(7),
         nullable=False,
         index=True,
     )
