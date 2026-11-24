@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     API_TITLE: str = "Joinville Data Hub"
-    API_VERSION: str = "1.2.0"
+    API_VERSION: str = "1.3.0"
     API_DESCRIPTION: str = (
         "API de dados públicos de Joinville/SC: "
         "CAGED (emprego), CEMPRE/IBGE (empresas e salários) e RFB (CNPJ)."
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # Escolher ferramenta e resumir números não pede raciocínio longo; "minimal"
     # corta a latência. Vazio = padrão do modelo (modelos 2.5 não aceitam).
     AGENTE_THINKING_LEVEL: str = "minimal"
+    AGENTE_TIMEOUT_MS: int = 10000
+    AGENTE_TENTATIVAS: int = 3
     # Cada pergunta custa uma chamada paga ao LLM: limites contra abuso
     AGENTE_LIMITE_POR_MINUTO: int = 5
     AGENTE_LIMITE_DIARIO: int = 200
@@ -41,6 +43,7 @@ class Settings(BaseSettings):
     IBGE_MUNICIPIO_JOINVILLE: int = 4209102
 
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
+    IBGE_SIDRA_URL: str = "https://apisidra.ibge.gov.br"
     CEMPRE_BASE_URL: str = "https://apisidra.ibge.gov.br"
 
     # Novo CAGED é mensal -> checar uma vez ao dia, às 2h (horário de Brasília)
@@ -49,6 +52,8 @@ class Settings(BaseSettings):
     # CEMPRE é anual -> roda todo dia 1º às 3h
     SCHEDULER_CEMPRE_DIA: int = 1
     SCHEDULER_CEMPRE_HORA: int = 3
+    SCHEDULER_IBGE_DIA: int = 1
+    SCHEDULER_IBGE_HORA: int = 5
 
     # -------------------- RFB (Receita Federal Brasileira) --------------------
     # Servidor de arquivos da RFB, com uma pasta por competência (AAAA-MM)
@@ -80,7 +85,7 @@ class Settings(BaseSettings):
 
     # Origens liberadas no CORS (front Nexus). No .env, usar formato JSON:
     # CORS_ORIGINS=["http://localhost:3000","https://nexus.exemplo.com"]
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     DEBUG: bool = False
     model_config = SettingsConfigDict(

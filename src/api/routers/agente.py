@@ -27,7 +27,12 @@ def _agente_padrao() -> Agente:
     cliente = genai.Client(
         api_key=settings.GEMINI_API_KEY,
         http_options=types.HttpOptions(
-            retry_options=types.HttpRetryOptions(attempts=3),
+            timeout=settings.AGENTE_TIMEOUT_MS,
+            retry_options=types.HttpRetryOptions(
+                attempts=settings.AGENTE_TENTATIVAS,
+                initial_delay=0.2,
+                max_delay=1.0,
+            ),
         ),
     )
     return Agente(

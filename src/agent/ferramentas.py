@@ -18,7 +18,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.agent.secoes import SECOES_CNAE, secao_do_setor
-from src.database.models import CagedMovimentacao, CempreEmprego, RfbEmpresa
+from src.database.models import (
+    CagedMovimentacao,
+    CempreEmprego,
+    IbgeIndicador,
+    RfbEmpresa,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +76,15 @@ def listar_periodos(db: Session) -> dict[str, Any]:
         select(RfbEmpresa.competencia).distinct().order_by(RfbEmpresa.competencia),
     ).all()
 
+    ibge = db.scalars(
+        select(IbgeIndicador.ano).distinct().order_by(IbgeIndicador.ano),
+    ).all()
+
     return {
         "caged_competencias_YYYY-MM": list(caged),
         "cempre_anos": list(cempre),
         "rfb_competencias_YYYY-MM": list(rfb),
+        "ibge_anos": list(ibge),
         "secoes_cnae": SECOES_CNAE,
     }
 
@@ -237,6 +247,61 @@ def consultar_rfb(
     }
 
 
+INDICADORES_IBGE = ("populacao_estimada", "pib", "participacao_pib_sc")
+
+
+def consultar_ibge(
+    db: Session,
+    indicador: str | None = None,
+    ano: str | None = None,
+) -> dict[str, Any]:
+    ano = _validar(ano, _RE_ANO, "ano")
+
+    if indicador:
+        indicador = str(indicador).strip()
+        if indicador not in INDICADORES_IBGE:
+            raise ArgumentoInvalido(
+                f"Indicador inválido: {indicador!r}. Use {', '.join(INDICADORES_IBGE)}."
+            )
+
+    consulta = select(IbgeIndicador).order_by(
+        IbgeIndicador.ano.desc(),
+        IbgeIndicador.indicador,
+    )
+    if indicador:
+        consulta = consulta.where(IbgeIndicador.indicador == indicador)
+    if ano:
+        consulta = consulta.where(IbgeIndicador.ano == ano)
+
+    registros = db.scalars(consulta.limit(MAX_LINHAS + 1)).all()
+
+    linhas = [
+        {
+            "ano": r.ano,
+            "indicador": r.indicador,
+            "descricao": r.descricao,
+            "valor": r.valor,
+            "unidade": r.unidade,
+        }
+        for r in registros[:MAX_LINHAS]
+    ]
+
+    mais_recente: dict[str, dict[str, Any]] = {}
+    for linha in linhas:
+        mais_recente.setdefault(linha["indicador"], linha)
+
+    return {
+        "fonte": "IBGE (SIDRA): população estimada e PIB municipal, Joinville/SC",
+        "linhas": linhas,
+        "mais_recente_por_indicador": mais_recente,
+        "truncado": len(registros) > MAX_LINHAS,
+        "observacao": (
+            "pib está em mil reais. participacao_pib_sc é o percentual do PIB de "
+            "Santa Catarina. populacao_estimada não é publicada em anos de Censo."
+        ),
+    }
+
+
 # ------------------------- declarações para o LLM -------------------------
 
 _PROP_SECAO = {
@@ -310,11 +375,35 @@ DECLARACOES: list[dict[str, Any]] = [
     },
 ]
 
+DECLARACOES.append(
+    {
+        "name": "consultar_ibge",
+        "description": (
+            "Indicadores anuais de Joinville do IBGE: população residente "
+            "estimada, PIB a preços correntes (mil reais) e participação no "
+            "PIB de Santa Catarina (%). Sem ano, devolve a série mais recente "
+            "primeiro."
+        ),
+        "parameters_json_schema": {
+            "type": "object",
+            "properties": {
+                "indicador": {
+                    "type": "string",
+                    "enum": list(INDICADORES_IBGE),
+                    "description": "Indicador. Omitir = todos.",
+                },
+                "ano": {"type": "string", "description": "Ano, ex.: 2023."},
+            },
+        },
+    }
+)
+
 FERRAMENTAS: dict[str, Callable[..., dict[str, Any]]] = {
     "listar_periodos": listar_periodos,
     "consultar_caged": consultar_caged,
     "consultar_cempre": consultar_cempre,
     "consultar_rfb": consultar_rfb,
+    "consultar_ibge": consultar_ibge,
 }
 
 _ARGUMENTOS_PERMITIDOS = {
@@ -322,6 +411,7 @@ _ARGUMENTOS_PERMITIDOS = {
     "consultar_caged": {"competencia", "secao"},
     "consultar_cempre": {"ano", "secao"},
     "consultar_rfb": {"competencia", "secao"},
+    "consultar_ibge": {"indicador", "ano"},
 }
 
 

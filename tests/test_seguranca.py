@@ -3,6 +3,7 @@ import time
 import pytest
 from sqlalchemy import select
 
+from src.core.settings import settings
 from src.database.models.api_token import ApiToken
 from src.database.repositorio_tokens import (
     VALIDADE_MAXIMA_MINUTOS,
@@ -203,7 +204,7 @@ def test_cors_nao_libera_credenciais(client):
     resp = client.options(
         "/caged/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": settings.CORS_ORIGINS[0],
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "X-API-Token",
         },
@@ -216,7 +217,7 @@ def test_cors_bloqueia_metodo_nao_usado(client):
     resp = client.options(
         "/caged/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": settings.CORS_ORIGINS[0],
             "Access-Control-Request-Method": "PUT",
         },
     )

@@ -42,7 +42,11 @@ setores selecionados.
         )
 
     return (
-    query.order_by(RfbEmpresa.competencia, RfbEmpresa.setor)
+    query.order_by(
+        RfbEmpresa.competencia,
+        RfbEmpresa.setor == SETOR_TOTAL,
+        RfbEmpresa.setor,
+    )
     .offset(skip)
     .limit(limit)
     .all()

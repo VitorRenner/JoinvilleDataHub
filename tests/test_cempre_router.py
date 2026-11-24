@@ -101,3 +101,12 @@ def test_listar_cempre_sem_total(client):
     assert resp.status_code == 200
     setores = [registro["setor"] for registro in resp.json()]
     assert setores == ["C Indústrias de transformação"]
+
+def test_listar_cempre_total_sempre_no_fim(client):
+    _inserir_registro(setor="Total")
+    _inserir_registro(setor="A Agricultura")
+    _inserir_registro(setor="C Indústrias de transformação")
+
+    setores = [linha["setor"] for linha in client.get("/cempre/").json()]
+
+    assert setores[-1] == "Total"

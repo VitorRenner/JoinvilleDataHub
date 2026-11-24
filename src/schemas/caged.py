@@ -51,6 +51,19 @@ class CagedBulkCreate(BaseModel):
     )
 
 
+class CagedSerieItem(BaseModel):
+    competencia: str
+    admissoes: int
+    demissoes: int
+    saldo: int
+
+
+class ResumoFonte(BaseModel):
+    total_registros: int
+    periodos: list[str]
+    ultimo_periodo: str | None
+
+
 class CagedResponse(CagedBase):
     """
     Schema utilizado nas respostas da API.

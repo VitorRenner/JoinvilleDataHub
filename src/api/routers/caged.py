@@ -14,6 +14,8 @@ from src.schemas.caged import (
     CagedBulkCreate,
     CagedCreate,
     CagedResponse,
+    CagedSerieItem,
+    ResumoFonte,
 )
 
 router = APIRouter()
@@ -61,7 +63,33 @@ def listar_caged(
 
 
 @router.get(
+    "/serie",
+    response_model=list[CagedSerieItem],
+    summary="Totais de Joinville por competência",
+)
+def serie_caged(
+    competencia_inicial: str | None = Query(
+        None,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        examples=["2024-01"],
+    ),
+    competencia_final: str | None = Query(
+        None,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        examples=["2026-09"],
+    ),
+    db: Session = Depends(get_db),
+):
+    return repositorio.buscar_serie_caged(
+        db,
+        competencia_inicial,
+        competencia_final,
+    )
+
+
+@router.get(
     "/stats/resumo",
+    response_model=ResumoFonte,
 )
 def estatisticas(
     db: Session = Depends(get_db),
@@ -70,9 +98,12 @@ def estatisticas(
     Retorna estatísticas básicas do CAGED.
     """
 
-    return {
-        "total_registros": repositorio.contar_registros(db),
-    }
+    periodos = repositorio.listar_competencias_caged(db)
+    return ResumoFonte(
+        total_registros=repositorio.contar_registros(db),
+        periodos=periodos,
+        ultimo_periodo=periodos[-1] if periodos else None,
+    )
 
 
 @router.get(

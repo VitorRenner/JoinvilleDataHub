@@ -73,6 +73,18 @@ def _job_rfb() -> None:
         )
 
 
+def _job_ibge() -> None:
+    try:
+        from src.services.atualizacao_ibge import atualizar_ibge
+
+        atualizar_ibge()
+
+    except Exception:
+        logger.exception(
+            "Falha na atualização automática do IBGE.",
+        )
+
+
 def iniciar_scheduler() -> None:
     """
     Inicia o scheduler caso ele ainda não esteja rodando.
@@ -120,17 +132,30 @@ def iniciar_scheduler() -> None:
             replace_existing=True,
         )
 
+        scheduler.add_job(
+            _job_ibge,
+            trigger="cron",
+            day=settings.SCHEDULER_IBGE_DIA,
+            hour=settings.SCHEDULER_IBGE_HORA,
+            id="atualizacao_ibge",
+            name="Atualização automática do IBGE",
+            replace_existing=True,
+        )
+
         scheduler.start()
 
         logger.info(
             "Scheduler iniciado (horário de Brasília). CAGED todo dia às %sh; "
             "CEMPRE todo dia %s do mês, às %sh; "
-            "RFB todo dia %s do mês, às %sh.",
+            "RFB todo dia %s do mês, às %sh; "
+            "IBGE todo dia %s do mês, às %sh.",
             settings.SCHEDULER_CAGED_HORA,
             settings.SCHEDULER_CEMPRE_DIA,
             settings.SCHEDULER_CEMPRE_HORA,
             settings.SCHEDULER_RFB_DIA,
             settings.SCHEDULER_RFB_HORA,
+            settings.SCHEDULER_IBGE_DIA,
+            settings.SCHEDULER_IBGE_HORA,
         )
 
     except Exception:

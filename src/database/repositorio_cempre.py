@@ -41,7 +41,16 @@ def buscar_cempre(
             CempreEmprego.setor.ilike(f"%{setor}%"),
         )
 
-    return query.offset(skip).limit(limit).all()
+    return (
+        query.order_by(
+            CempreEmprego.ano,
+            CempreEmprego.setor == SETOR_TOTAL,
+            CempreEmprego.setor,
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def buscar_por_id_cempre(
@@ -69,6 +78,13 @@ def contar_registros_cempre(
     """
 
     return db.query(CempreEmprego).count()
+
+
+def listar_anos_cempre(
+    db: Session,
+) -> list[str]:
+    linhas = db.query(CempreEmprego.ano).distinct().order_by(CempreEmprego.ano).all()
+    return [linha[0] for linha in linhas]
 
 
 def upsert_cempre(

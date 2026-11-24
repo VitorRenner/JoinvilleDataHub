@@ -5,7 +5,7 @@ from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from src.api.routers import caged, ibge
+from src.api.routers import caged
 from src.core.logging import configurar_logging
 from src.core.settings import settings
 from src.database.conexao import engine
@@ -55,11 +55,23 @@ app.include_router(
     tags=["CAGED"],
 )
 
-app.include_router(
-    ibge.router,
-    prefix="/ibge",
-    tags=["IBGE"],
-)
+IBGE_DISPONIVEL = False
+
+try:
+    from src.api.routers import ibge
+
+    app.include_router(
+        ibge.router,
+        prefix="/ibge",
+        tags=["IBGE"],
+    )
+
+    IBGE_DISPONIVEL = True
+
+except Exception:
+    logger.exception(
+        "Router do IBGE indisponível. A API segue sem a rota /ibge.",
+    )
 
 
 # Registro protegido: o import do router do CEMPRE fica DENTRO do try.
@@ -136,8 +148,10 @@ def root() -> dict:
 
     endpoints = {
         "caged": "/caged",
-        "ibge": "/ibge",
     }
+
+    if IBGE_DISPONIVEL:
+        endpoints["ibge"] = "/ibge"
 
     if CEMPRE_DISPONIVEL:
         endpoints["cempre"] = "/cempre"

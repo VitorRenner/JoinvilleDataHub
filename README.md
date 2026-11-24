@@ -44,10 +44,10 @@ end: architecture, data, API, automation and infrastructure.
 
 | Source | Agency | What it shows | Frequency | Route |
 | --- | --- | --- | --- | --- |
-| **CAGED** | Ministry of Labor (MTE) | Hires, layoffs and net jobs by sector | Monthly | `/caged` |
+| **CAGED** | Ministry of Labor (MTE) | Hires, layoffs and net jobs by sector, 2020-01 onward (MOV + FOR − EXC) | Monthly | `/caged` |
 | **CEMPRE** | IBGE | Business units, headcount and average wage | Yearly | `/cempre` |
 | **CNPJ** | Federal Revenue (RFB) | Active companies, openings, MEI, Simples | Monthly | `/rfb` |
-| **Municipalities** | IBGE | Location data | — | `/ibge` |
+| **Population and GDP** | IBGE (SIDRA) | Estimated population, GDP and share of SC's GDP | Yearly | `/ibge` |
 
 ## Architecture
 
@@ -96,13 +96,14 @@ The full decision log is in
 | --- | --- | --- |
 | `GET` | `/docs` | Swagger with every route |
 | `GET` | `/health` | Application and database status |
-| `GET` | `/caged/` | CAGED (filters: `competencia`, `setor`) |
+| `GET` | `/caged/` | CAGED (filters: `competencia` as `AAAA-MM`, `setor`) |
+| `GET` | `/caged/serie` | Joinville totals per month (filters: `competencia_inicial`, `competencia_final`) |
 | `POST` | `/caged/` · `/caged/bulk` | Creates or updates one or many records 🔐 |
 | `DELETE` | `/caged/{id}` | Deletes a record 🔐 |
 | `GET` | `/cempre/` | CEMPRE (filters: `ano`, `setor`, `incluir_total`) |
 | `GET` | `/rfb/` | RFB (filters: `competencia`, `setor`, `incluir_total`) |
-| `GET` | `/{source}/stats/resumo` | Summary for `caged`, `cempre` or `rfb` |
-| `GET` | `/ibge/municipios` | IBGE municipalities |
+| `GET` | `/{source}/stats/resumo` | `total_registros`, `periodos` and `ultimo_periodo` for `caged`, `cempre`, `rfb` or `ibge` |
+| `GET` | `/ibge/` · `/ibge/joinville` | IBGE yearly series (filters: `indicador`, `ano`) · latest value of each indicator |
 | `POST` | `/perguntar` | Question in plain Portuguese, answered by the LLM agent 🤖 |
 
 🔐 Needs a single-use token in the `X-API-Token` header. Tokens are issued only
@@ -125,7 +126,7 @@ curl -X POST http://localhost:8000/perguntar \
 ```json
 {
   "resposta": "No último mês disponível (setembro de 2026), o setor que mais gerou empregos em Joinville foi \"Atividades administrativas e serviços complementares\", com um saldo de 132 empregos (4.153 admissões e 4.021 demissões). A fonte dos dados é o Novo CAGED.",
-  "consultas": [{"ferramenta": "consultar_caged", "argumentos": {"competencia": "202609"}, "erro": null}],
+  "consultas": [{"ferramenta": "consultar_caged", "argumentos": {"competencia": "2026-09"}, "erro": null}],
   "modelo": "gemini-3.5-flash-lite",
   "tokens_entrada": 3455,
   "tokens_saida": 98,
@@ -209,9 +210,13 @@ Full step-by-step guide (Portuguese):
 
 ```bash
 uv run pytest -q
+uv run python -m src.scripts.smoke_api
 ```
 
-The tests cover the CAGED, CEMPRE and RFB routes, the CAGED collector, the
+`smoke_api` calls every `GET` route in the OpenAPI spec of a running server.
+
+The tests cover the CAGED, CEMPRE, RFB and IBGE routes, the CAGED collector
+(MOV + FOR − EXC methodology), the
 health check, the CEMPRE and RFB transformers, and security: single-use tokens
 (reuse, expiry, missing or unknown token), input validation, CORS, and the
 LLM agent (tools, loop, step limit, error handling, rate limits) with a fake

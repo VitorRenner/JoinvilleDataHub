@@ -47,7 +47,8 @@ def test_stats_resumo_rfb(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_registros"] == 0
-    assert "competencias" in data
+    assert data["periodos"] == []
+    assert data["ultimo_periodo"] is None
 
 
 def test_buscar_rfb_id_inexistente(client):
