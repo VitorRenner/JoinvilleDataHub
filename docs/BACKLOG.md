@@ -432,6 +432,35 @@ de software.
   número; IPs nunca saíam da memória do limitador; erro de banco numa
   ferramenta virava 500. Todos corrigidos e com teste.
 
+## Sessão 18 (24/11/2026) — Server v1.3.0 pronto para o front
+
+### Concluído
+
+- Auditoria do banco (`src/scripts/auditoria_dados.sql`): nulos, duplicados,
+  formatos e meses faltando em todas as fontes.
+- CAGED: série completa de 2020-01 a 2026-09 (81 competências, 1.502
+  registros), com a metodologia oficial MOV + FOR − EXC. O job baixa todo mês
+  que falta e recalcula a série inteira numa única transação.
+- CAGED: cache só com o recorte de Joinville (`data/raw/caged_joinville/`);
+  os arquivos oficiais de ~500 MB por mês são apagados depois de filtrados.
+- CAGED validado contra os números publicados (diferença abaixo de 5%).
+- Competência do CAGED no formato `AAAA-MM`, igual à RFB (migration
+  `b8e3f5a1d2c7`); `/caged` recusa outro formato com 422.
+- Migration do índice `ix_caged_movimentacao_id`; tabela
+  `caged_backup_20261112` apagada.
+- RFB: competência 2026-11 carregada; ETL idempotente conferido.
+- IBGE real: população estimada e PIB municipal (SIDRA), com tabela, ETL,
+  job e rotas próprios (`/ibge`, `/ibge/joinville`, `/ibge/stats/resumo`).
+- API: `/caged/serie`, `stats/resumo` padronizado nas 4 fontes, ordenação
+  com a linha "Total" no fim e CORS para o Vite (porta 5173).
+- Agente: ferramenta `consultar_ibge`, raciocínio `minimal`, limite de 10 s
+  por chamada (mínimo aceito pelo Gemini) com nova tentativa e resposta em
+  linhas (`resposta_linhas`).
+- `src/scripts/smoke_api.py`: chama todas as rotas GET do OpenAPI.
+- Aviso de `utcfromtimestamp` removido; testes: 98 → 120.
+
+---
+
 ### Backlog Atual
 
 ## Prioridade P0 (Versão 1.0)
@@ -474,19 +503,14 @@ de software.
       (aberturas do mês mais recente vêm subestimadas).
 - [ ] Avaliar a carga da série histórica de aberturas da RFB a partir de um
       único arquivo mensal.
-- [ ] Criar migração para o índice `ix_caged_movimentacao_id`, que existe no
-      model mas não no banco.
+- [x] Criar migração para o índice `ix_caged_movimentacao_id`.
 - [ ] Fazer o retry do download da RFB continuar de onde parou (cabeçalho HTTP
       `Range`), em vez de recomeçar o arquivo do zero.
-- [ ] CAGED: tratar FOR/EXC nos meses de origem (somar FOR, descontar EXC) em
-      vez de descartá-los.
-- [ ] Adicionar `order_by` nas listagens do CAGED (competência, setor) e do
-      CEMPRE (ano, setor).
-- [ ] Validar o formato da competência na rota `/caged` (hoje aceita qualquer
-      texto).
-- [ ] Padronizar o `stats/resumo` das três fontes (listar competências/anos
-      disponíveis).
-- [ ] Apagar a tabela `caged_backup_20261112` após uma semana sem problemas.
+- [x] CAGED: tratar FOR/EXC nos meses de origem (somar FOR, descontar EXC).
+- [x] Adicionar `order_by` nas listagens do CAGED e do CEMPRE.
+- [x] Validar o formato da competência na rota `/caged`.
+- [x] Padronizar o `stats/resumo` das fontes.
+- [x] Apagar a tabela `caged_backup_20261112`.
 ---
 
 ## Prioridade P2
@@ -509,12 +533,9 @@ de software.
       `test_rfb_router.py`), com CSV pequeno de exemplo.
 - [ ] Abrir a sessão do banco no service da RFB só na hora de gravar, para não
       manter uma transação aberta durante o download.
-- [ ] Implementar o router `/ibge` de verdade ou removê-lo (hoje devolve
-      Joinville fixo no código).
-- [ ] Ordenar a listagem do CEMPRE com a linha "Total" sempre no fim.
-- [ ] Trocar `datetime.utcfromtimestamp()` em `src/core/logging.py` por
-      `datetime.fromtimestamp(..., datetime.UTC)` (aviso de depreciação nos
-      testes).
+- [x] Implementar o router `/ibge` de verdade (população e PIB do SIDRA).
+- [x] Ordenar a listagem do CEMPRE com a linha "Total" sempre no fim.
+- [x] Trocar `datetime.utcfromtimestamp()` em `src/core/logging.py`.
 
 ---
 
@@ -540,3 +561,4 @@ e internacionais.
 | 19/11/2026 | v1.0.0 | Configurações centralizadas no settings, CORS pelo `.env` e P0 concluído: primeira versão estável do servidor. |
 | 19/11/2026 | v1.1.0 | Segurança: token de uso único nas rotas de escrita, validação de entrada, CORS fechado, SECURITY.md e AI_USAGE.md. |
 | 19/11/2026 | v1.2.0 | Agente `/perguntar` com Gemini, ferramentas só de leitura, guardrails e conjunto de avaliação. |
+| 24/11/2026 | v1.3.0 | CAGED 2020+ com MOV + FOR − EXC, IBGE real, `/caged/serie`, `stats/resumo` padronizado e agente com IBGE: servidor pronto para o front. |

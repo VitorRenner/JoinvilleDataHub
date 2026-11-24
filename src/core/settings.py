@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     API_TITLE: str = "Joinville Data Hub"
-    API_VERSION: str = "1.2.0"
+    API_VERSION: str = "1.3.0"
     API_DESCRIPTION: str = (
         "API de dados públicos de Joinville/SC: "
         "CAGED (emprego), CEMPRE/IBGE (empresas e salários) e RFB (CNPJ)."
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Escolher ferramenta e resumir números não pede raciocínio longo; "minimal"
     # corta a latência. Vazio = padrão do modelo (modelos 2.5 não aceitam).
     AGENTE_THINKING_LEVEL: str = "minimal"
-    AGENTE_TIMEOUT_MS: int = 4000
+    AGENTE_TIMEOUT_MS: int = 10000
     AGENTE_TENTATIVAS: int = 3
     # Cada pergunta custa uma chamada paga ao LLM: limites contra abuso
     AGENTE_LIMITE_POR_MINUTO: int = 5
