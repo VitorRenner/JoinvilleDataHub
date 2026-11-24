@@ -29,7 +29,15 @@ def buscar_caged(
             CagedMovimentacao.setor.ilike(f"%{setor}%"),
         )
 
-    return query.offset(skip).limit(limit).all()
+    return (
+        query.order_by(
+            CagedMovimentacao.competencia,
+            CagedMovimentacao.setor,
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def buscar_por_id(
@@ -57,6 +65,53 @@ def contar_registros(
     """
 
     return db.query(CagedMovimentacao).count()
+
+
+def listar_competencias_caged(
+    db: Session,
+) -> list[str]:
+    linhas = (
+        db.query(CagedMovimentacao.competencia)
+        .distinct()
+        .order_by(CagedMovimentacao.competencia)
+        .all()
+    )
+    return [linha[0] for linha in linhas]
+
+
+def buscar_serie_caged(
+    db: Session,
+    competencia_inicial: str | None = None,
+    competencia_final: str | None = None,
+) -> list[dict]:
+    query = db.query(
+        CagedMovimentacao.competencia,
+        func.sum(CagedMovimentacao.admissoes).label("admissoes"),
+        func.sum(CagedMovimentacao.demissoes).label("demissoes"),
+        func.sum(CagedMovimentacao.saldo).label("saldo"),
+    )
+
+    if competencia_inicial:
+        query = query.filter(CagedMovimentacao.competencia >= competencia_inicial)
+
+    if competencia_final:
+        query = query.filter(CagedMovimentacao.competencia <= competencia_final)
+
+    linhas = (
+        query.group_by(CagedMovimentacao.competencia)
+        .order_by(CagedMovimentacao.competencia)
+        .all()
+    )
+
+    return [
+        {
+            "competencia": linha.competencia,
+            "admissoes": int(linha.admissoes),
+            "demissoes": int(linha.demissoes),
+            "saldo": int(linha.saldo),
+        }
+        for linha in linhas
+    ]
 
 
 def upsert_caged(

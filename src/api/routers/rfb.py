@@ -76,9 +76,11 @@ def estatisticas_rfb(
     Retorna o total de registros e as competências disponíveis da RFB.
     """
 
+    periodos = repositorio_rfb.listar_competencias_rfb(db)
     return {
         "total_registros": repositorio_rfb.contar_registros_rfb(db),
-        "competencias": repositorio_rfb.listar_competencias_rfb(db),
+        "periodos": periodos,
+        "ultimo_periodo": periodos[-1] if periodos else None,
     }
 
 

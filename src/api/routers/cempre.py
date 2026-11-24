@@ -74,8 +74,11 @@ def estatisticas_cempre(
     Retorna estatísticas básicas do CEMPRE.
     """
 
+    periodos = repositorio_cempre.listar_anos_cempre(db)
     return {
         "total_registros": repositorio_cempre.contar_registros_cempre(db),
+        "periodos": periodos,
+        "ultimo_periodo": periodos[-1] if periodos else None,
     }
 
 
