@@ -230,6 +230,7 @@ def test_nenhuma_ferramenta_escreve():
         "consultar_caged",
         "consultar_cempre",
         "consultar_rfb",
+        "consultar_ibge",
     }
 
 
@@ -488,3 +489,41 @@ def test_resposta_vazia_do_modelo_tem_mensagem_padrao(db):
     )
     resultado = Agente(cliente=modelo, modelo="falso").perguntar(db, "?")
     assert resultado.resposta
+
+
+def _inserir_ibge(db, ano: str, indicador: str, valor: float) -> None:
+    from src.database.models import IbgeIndicador
+
+    db.add(
+        IbgeIndicador(
+            ano=ano,
+            indicador=indicador,
+            descricao=indicador,
+            valor=valor,
+            unidade="Unidade",
+        )
+    )
+    db.commit()
+
+
+def test_consultar_ibge_devolve_mais_recente_por_indicador(db):
+    _inserir_ibge(db, "2025", "populacao_estimada", 664541)
+    _inserir_ibge(db, "2026", "populacao_estimada", 673980)
+    _inserir_ibge(db, "2023", "pib", 49815877)
+
+    saida = ferramentas.consultar_ibge(db)
+
+    assert saida["mais_recente_por_indicador"]["populacao_estimada"]["ano"] == "2026"
+    assert saida["mais_recente_por_indicador"]["pib"]["valor"] == 49815877
+
+
+def test_consultar_ibge_rejeita_indicador_desconhecido(db):
+    saida = ferramentas.executar(db, "consultar_ibge", {"indicador": "inflacao"})
+
+    assert "Indicador inválido" in saida["erro"]
+
+
+def test_listar_periodos_inclui_anos_do_ibge(db):
+    _inserir_ibge(db, "2026", "populacao_estimada", 673980)
+
+    assert ferramentas.listar_periodos(db)["ibge_anos"] == ["2026"]
