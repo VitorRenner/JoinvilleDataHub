@@ -1,6 +1,9 @@
+import re
 from typing import TypedDict
 
 import pandas as pd
+
+RE_COMPETENCIA = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 COLUNAS_OBRIGATORIAS = (
     "competencia",
@@ -31,7 +34,7 @@ class RegistroCaged(TypedDict):
 
 
 def transformar_caged(
-        df:pd.DataFrame,
+    df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Padroniza os dados brutos do CAGED para persistência.
@@ -66,7 +69,7 @@ def transformar_caged(
             .astype(int)
         )
 
-    df["competencia"] = df["competencia"].astype(str).str[:6]
+    df["competencia"] = df["competencia"].astype(str).str[:7]
 
     df["setor"] = df["setor"].astype(str).str[:100]
 
@@ -91,8 +94,8 @@ def validar_dados(
 
         competencia = str(registro["competencia"])
 
-        if len(competencia) != 6 or not competencia.isdigit():
-            erros.append("Competência deve estar no formato YYYYMM.")
+        if not RE_COMPETENCIA.fullmatch(competencia):
+            erros.append("Competência deve estar no formato AAAA-MM.")
 
         if not registro.get("setor"):
             erros.append("Setor não informado.")

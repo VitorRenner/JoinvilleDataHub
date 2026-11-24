@@ -13,7 +13,7 @@ from src.schemas.caged import CAGED_BULK_MAX_REGISTROS
 from tests.conftest import TestingSessionLocal
 
 REGISTRO = {
-    "competencia": "202606",
+    "competencia": "2026-06",
     "setor": "Indústria",
     "admissoes": 10,
     "demissoes": 4,
@@ -154,7 +154,7 @@ def test_emitir_exige_descricao(db):
 @pytest.mark.parametrize(
     ("campo", "valor"),
     [
-        ("competencia", "2026-06"),
+        ("competencia", "202606"),
         ("competencia", "20260"),
         ("setor", ""),
         ("setor", "x" * 101),

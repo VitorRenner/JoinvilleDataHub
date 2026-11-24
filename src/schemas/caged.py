@@ -27,8 +27,12 @@ class CagedCreate(CagedBase):
     pode quebrar por causa de um registro antigo já gravado no banco.
     """
 
-    # Limites iguais aos da tabela (String(6) e String(100))
-    competencia: str = Field(pattern=r"^\d{6}$", description="Formato YYYYMM")
+    # Limites iguais aos da tabela (String(7) e String(100))
+    competencia: str = Field(
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Formato AAAA-MM",
+        examples=["2026-09"],
+    )
     setor: str = Field(min_length=1, max_length=100)
     admissoes: int = Field(ge=0)
     demissoes: int = Field(ge=0)

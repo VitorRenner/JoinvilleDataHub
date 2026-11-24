@@ -2,6 +2,7 @@ import logging
 import time
 from ftplib import FTP
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import py7zr
@@ -25,6 +26,12 @@ ANO_INICIAL_CAGED = 2020
 TIPOS_ARQUIVO = ("MOV", "FOR", "EXC")
 TIPO_ARQUIVO_OBRIGATORIO = "MOV"
 
+COLUNAS_MOVIMENTACAO = (
+    "competênciamov",
+    "seção",
+    "saldomovimentação",
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +48,13 @@ class CagedCollector(BaseCollector):
         self.download_dir = Path("data") / "raw" / "caged"
 
         self.download_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        self.cache_dir = Path("data") / "raw" / "caged_joinville"
+
+        self.cache_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
@@ -77,31 +91,33 @@ class CagedCollector(BaseCollector):
                 )
                 time.sleep(wait)
 
-    def competencia_mais_recente(self) -> tuple[int, int]:
+    def listar_competencias(self) -> list[str]:
         """
-        Descobre, no FTP oficial, a competência (ano, mês) mais recente disponível.
+        Lista, no FTP oficial, todas as competências (YYYYMM) do Novo CAGED
+        a partir de ANO_INICIAL_CAGED, em ordem crescente.
         """
 
-        logger.info("Consultando competência mais recente disponível no FTP.")
+        logger.info("Consultando competências disponíveis no FTP.")
 
         ftp = self._conectar_ftp()
 
         try:
             ftp.cwd(FTP_DIRETORIO_BASE)
 
-            anos = sorted(item for item in ftp.nlst() if item.isdigit())
+            anos = sorted(
+                item
+                for item in ftp.nlst()
+                if item.isdigit() and int(item) >= ANO_INICIAL_CAGED
+            )
 
-            if not anos:
-                raise RuntimeError("Nenhum ano disponível no FTP do CAGED.")
-
-            ftp.cwd(anos[-1])
-
-            competencias = sorted(item for item in ftp.nlst() if item.isdigit())
-
-            if not competencias:
-                raise RuntimeError("Nenhuma competência disponível no FTP do CAGED.")
-
-            competencia = competencias[-1]
+            competencias: list[str] = []
+            for ano in anos:
+                itens = ftp.nlst(ano)
+                competencias.extend(
+                    nome
+                    for nome in (item.rsplit("/", 1)[-1] for item in itens)
+                    if len(nome) == 6 and nome.isdigit()
+                )
 
         except OSError as erro:
             raise RuntimeError(
@@ -111,9 +127,19 @@ class CagedCollector(BaseCollector):
         finally:
             ftp.close()
 
-        logger.info("Competência mais recente encontrada: %s.", competencia)
+        if not competencias:
+            raise RuntimeError("Nenhuma competência disponível no FTP do CAGED.")
 
-        return int(competencia[:4]), int(competencia[4:6])
+        competencias = sorted(set(competencias))
+
+        logger.info(
+            "%d competências disponíveis (%s a %s).",
+            len(competencias),
+            competencias[0],
+            competencias[-1],
+        )
+
+        return competencias
 
     def _baixar_competencia(
         self,
@@ -225,66 +251,121 @@ class CagedCollector(BaseCollector):
 
         return arquivos_extraidos
 
-    def coletar(
-        self,
-        ano: int | None = None,
-        mes: int | None = None,
-    ) -> pd.DataFrame:
+    def coletar(self, **kwargs: Any) -> pd.DataFrame:
         """
-        Coleta os dados oficiais do CAGED e agrega as movimentações do
-        município de Joinville em admissões, demissões e saldo por competência
-        e setor.
-
-        Quando `ano`/`mes` não são informados, coleta a competência mais
-        recente disponível no FTP oficial.
-
-        Retorna:
-            DataFrame contendo os dados brutos coletados.
+        Coleta a série completa do Novo CAGED de Joinville: garante o cache
+        de todas as competências do FTP e devolve a série agregada
+        (MOV + FOR - EXC) por competência e setor.
         """
 
-        if ano is None or mes is None:
-            ano, mes = self.competencia_mais_recente()
+        competencias = self.listar_competencias()
 
-        if ano < ANO_INICIAL_CAGED:
-            raise ValueError(f"O ano deve ser maior ou igual a {ANO_INICIAL_CAGED}.")
+        pendentes = [c for c in competencias if not self.cache_completo(c)]
+        logger.info(
+            "Competências no cache: %d. A baixar: %d.",
+            len(competencias) - len(pendentes),
+            len(pendentes),
+        )
 
-        if not 1 <= mes <= 12:
-            raise ValueError("O mês deve estar entre 1 e 12.")
+        for posicao, competencia in enumerate(pendentes, start=1):
+            logger.info(
+                "[%d/%d] Baixando e filtrando %s.",
+                posicao,
+                len(pendentes),
+                competencia,
+            )
+            self.garantir_cache_joinville(competencia)
 
-        competencia = f"{ano}{mes:02d}"
+        movimentacoes = self.ler_cache(competencias)
 
         logger.info(
-            "Coletando dados do CAGED - competência %s.",
-            competencia,
+            "Movimentações de Joinville no cache: %d.",
+            len(movimentacoes),
         )
+
+        return self.agregar_serie(movimentacoes, competencias)
+
+    def _caminho_cache(self, tipo: str, competencia: str) -> Path:
+        return self.cache_dir / f"CAGED{tipo}{competencia}.csv"
+
+    def cache_completo(self, competencia: str) -> bool:
+        return all(
+            self._caminho_cache(tipo, competencia).exists() for tipo in TIPOS_ARQUIVO
+        )
+
+    def garantir_cache_joinville(self, competencia: str) -> None:
+        """
+        Garante, para uma competência, um CSV pequeno por tipo de arquivo
+        (MOV, FOR, EXC) só com as movimentações de Joinville.
+
+        Os arquivos oficiais têm ~500 MB por mês. Depois de filtrados, o .7z
+        e o .txt são apagados: só o recorte de Joinville fica em disco.
+        """
+
+        if self.cache_completo(competencia):
+            return
 
         arquivos = self._baixar_competencia(competencia)
 
-        dataframes_joinville = [
-            self.processar_arquivo_local(str(caminho)) for caminho in arquivos.values()
-        ]
+        for tipo in TIPOS_ARQUIVO:
+            destino = self._caminho_cache(tipo, competencia)
 
-        dados_joinville = (
-            pd.concat(dataframes_joinville, ignore_index=True)
-            if dataframes_joinville
-            else pd.DataFrame()
-        )
+            if tipo in arquivos:
+                df = self.processar_arquivo_local(str(arquivos[tipo]))
+                df = df[list(COLUNAS_MOVIMENTACAO)]
+            else:
+                df = pd.DataFrame(columns=list(COLUNAS_MOVIMENTACAO))
 
-        logger.info(
-            "Registros brutos de Joinville coletados: %d.",
-            len(dados_joinville),
-        )
+            arquivo_temporario = destino.with_suffix(".tmp")
+            df.to_csv(arquivo_temporario, index=False)
+            arquivo_temporario.replace(destino)
 
-        return self._agregar_movimentacoes(dados_joinville, competencia)
+        diretorio_bruto = self.download_dir / competencia
+        for arquivo in sorted(diretorio_bruto.rglob("*"), reverse=True):
+            if arquivo.is_file():
+                arquivo.unlink()
+            else:
+                arquivo.rmdir()
+        diretorio_bruto.rmdir()
+
+        logger.info("Cache de Joinville pronto para %s.", competencia)
+
+    def ler_cache(self, competencias: list[str]) -> pd.DataFrame:
+        """
+        Junta os CSVs de Joinville das competências informadas, com a coluna
+        "tipo" (MOV, FOR ou EXC) indicando o arquivo de origem.
+        """
+
+        partes = []
+        for competencia in competencias:
+            for tipo in TIPOS_ARQUIVO:
+                df = pd.read_csv(
+                    self._caminho_cache(tipo, competencia),
+                    dtype={"competênciamov": str, "seção": str},
+                )
+                df["tipo"] = tipo
+                partes.append(df)
+
+        if not partes:
+            return pd.DataFrame(columns=[*COLUNAS_MOVIMENTACAO, "tipo"])
+
+        return pd.concat(partes, ignore_index=True)
 
     @staticmethod
-    def _agregar_movimentacoes(
+    def agregar_serie(
         df: pd.DataFrame,
-        competencia: str,
+        competencias: list[str],
     ) -> pd.DataFrame:
         """
-        Agrega os registros individuais de movimentação (um por trabalhador)
-        em saldo de admissões/demissões por competência e setor (seção CNAE).
+        Calcula admissões, demissões e saldo por competência e setor com a
+        metodologia do Ministério do Trabalho:
+
+            MOV da competência
+            + FOR (declarações fora do prazo) com aquela competênciamov
+            - EXC (exclusões) com aquela competênciamov
+
+        FOR e EXC chegam nos arquivos de meses posteriores, por isso a série
+        inteira é recalculada a cada atualização.
         """
 
         colunas_finais = [
@@ -305,50 +386,35 @@ class CagedCollector(BaseCollector):
             }
         )
 
-        # Os arquivos FOR (declarações fora do prazo) e EXC (exclusões) trazem
-        # movimentações de competências anteriores. Como o upsert substitui a
-        # linha existente (competencia, setor), mantê-las sobrescreveria meses
-        # já carregados com valores parciais. Mantém só a competência do arquivo.
-        total_antes = len(df)
-        df = df[df["competencia"].astype(str) == competencia]
-        descartados = total_antes - len(df)
-        if descartados:
-            logger.info(
-                "%d registros de outras competências (FOR/EXC) descartados.",
-                descartados,
-            )
+        df["competencia"] = df["competencia"].astype(str).str[:6]
+        df = df[df["competencia"].isin(set(competencias))]
 
-        df["saldomovimentação"] = (
-            pd.to_numeric(
-                df["saldomovimentação"],
-                errors="coerce",
-            )
+        movimento = (
+            pd.to_numeric(df["saldomovimentação"], errors="coerce")
             .fillna(0)
             .astype(int)
         )
+        sinal = df["tipo"].map({"MOV": 1, "FOR": 1, "EXC": -1}).fillna(0).astype(int)
 
-        agregados = df.groupby(
-            [
-                "competencia",
-                "setor",
-            ],
-            as_index=False,
-        ).agg(
-            admissoes=(
-                "saldomovimentação",
-                lambda serie: int((serie == 1).sum()),
-            ),
-            demissoes=(
-                "saldomovimentação",
-                lambda serie: int((serie == -1).sum()),
-            ),
-            saldo=(
-                "saldomovimentação",
-                "sum",
-            ),
+        df = df.assign(
+            admissoes=(movimento == 1).astype(int) * sinal,
+            demissoes=(movimento == -1).astype(int) * sinal,
         )
 
-        return agregados[colunas_finais]
+        agregados = df.groupby(
+            ["competencia", "setor"],
+            as_index=False,
+        )[["admissoes", "demissoes"]].sum()
+
+        agregados["saldo"] = agregados["admissoes"] - agregados["demissoes"]
+        agregados["competencia"] = (
+            agregados["competencia"].str[:4] + "-" + agregados["competencia"].str[4:6]
+        )
+
+        return agregados[colunas_finais].sort_values(
+            ["competencia", "setor"],
+            ignore_index=True,
+        )
 
     def processar_arquivo_local(
         self,
@@ -369,17 +435,30 @@ class CagedCollector(BaseCollector):
         if not caminho.exists():
             raise FileNotFoundError(f"Arquivo não encontrado: {caminho}")
 
-        df = self.read_csv(
-            str(caminho),
-            sep=";",
-            encoding="UTF-8",
-            low_memory=False,
-        )
+        colunas = {"município", *COLUNAS_MOVIMENTACAO}
+
+        try:
+            df = self.read_csv(
+                str(caminho),
+                sep=";",
+                encoding="UTF-8",
+                usecols=lambda coluna: coluna in colunas,
+                dtype=str,
+            )
+        except RuntimeError:
+            logger.warning("Arquivo fora de UTF-8, relendo em latin-1: %s", caminho)
+            df = self.read_csv(
+                str(caminho),
+                sep=";",
+                encoding="latin-1",
+                usecols=lambda coluna: coluna in colunas,
+                dtype=str,
+            )
 
         if "município" not in df.columns:
             raise ValueError("A coluna 'municipio' não foi encontrada no arquivo.")
 
-        df = df[df["município"] == codigo_municipio]
+        df = df[df["município"].str.strip() == str(codigo_municipio)]
 
         logger.info(
             "Encontrados %d registros para o município %d.",

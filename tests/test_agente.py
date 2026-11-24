@@ -79,21 +79,21 @@ def db():
     sessao.add_all(
         [
             CagedMovimentacao(
-                competencia="202606",
+                competencia="2026-06",
                 setor="C",
                 admissoes=900,
                 demissoes=700,
                 saldo=200,
             ),
             CagedMovimentacao(
-                competencia="202606",
+                competencia="2026-06",
                 setor="G",
                 admissoes=500,
                 demissoes=550,
                 saldo=-50,
             ),
             CagedMovimentacao(
-                competencia="202605",
+                competencia="2026-05",
                 setor="C",
                 admissoes=800,
                 demissoes=800,
@@ -142,11 +142,11 @@ def db():
 
 
 def test_caged_filtra_e_soma_totais(db):
-    saida = ferramentas.consultar_caged(db, competencia="202606")
+    saida = ferramentas.consultar_caged(db, competencia="2026-06")
 
     assert len(saida["linhas"]) == 2
     assert saida["totais_por_competencia"] == {
-        "202606": {"admissoes": 1400, "demissoes": 1250, "saldo": 150},
+        "2026-06": {"admissoes": 1400, "demissoes": 1250, "saldo": 150},
     }
     assert saida["linhas"][0]["setor"] == "Indústrias de transformação"
 
@@ -154,25 +154,25 @@ def test_caged_filtra_e_soma_totais(db):
 def test_caged_sem_argumentos_usa_mes_mais_recente(db):
     saida = ferramentas.consultar_caged(db)
 
-    assert saida["competencia_consultada"] == "202606"
-    assert {linha["competencia"] for linha in saida["linhas"]} == {"202606"}
+    assert saida["competencia_consultada"] == "2026-06"
+    assert {linha["competencia"] for linha in saida["linhas"]} == {"2026-06"}
 
 
 def test_caged_por_secao_traz_serie_com_totais_por_mes(db):
     saida = ferramentas.consultar_caged(db, secao="c")
 
     # Mais recente primeiro, e nunca um total misturando meses
-    assert [linha["competencia"] for linha in saida["linhas"]] == ["202606", "202605"]
-    assert set(saida["totais_por_competencia"]) == {"202605", "202606"}
+    assert [linha["competencia"] for linha in saida["linhas"]] == ["2026-06", "2026-05"]
+    assert set(saida["totais_por_competencia"]) == {"2026-05", "2026-06"}
 
 
 def test_caged_marca_truncado_so_quando_passa_do_limite(db, monkeypatch):
     monkeypatch.setattr(ferramentas, "MAX_LINHAS", 2)
-    assert ferramentas.consultar_caged(db, competencia="202606")["truncado"] is False
+    assert ferramentas.consultar_caged(db, competencia="2026-06")["truncado"] is False
     assert ferramentas.consultar_caged(db, secao="C")["truncado"] is False
 
     monkeypatch.setattr(ferramentas, "MAX_LINHAS", 1)
-    assert ferramentas.consultar_caged(db, competencia="202606")["truncado"] is True
+    assert ferramentas.consultar_caged(db, competencia="2026-06")["truncado"] is True
 
 
 def test_erro_de_banco_vira_erro_generico(db, monkeypatch):
@@ -203,7 +203,7 @@ def test_rfb_filtra_por_secao_sem_total(db):
 
 def test_listar_periodos(db):
     saida = ferramentas.listar_periodos(db)
-    assert saida["caged_competencias_YYYYMM"] == ["202605", "202606"]
+    assert saida["caged_competencias_YYYY-MM"] == ["2026-05", "2026-06"]
     assert saida["rfb_competencias_YYYY-MM"] == ["2026-10"]
     assert saida["secoes_cnae"]["C"] == "Indústrias de transformação"
 
@@ -211,7 +211,7 @@ def test_listar_periodos(db):
 @pytest.mark.parametrize(
     ("nome", "argumentos", "trecho"),
     [
-        ("consultar_caged", {"competencia": "2026-06"}, "formato inválido"),
+        ("consultar_caged", {"competencia": "202606"}, "formato inválido"),
         ("consultar_caged", {"secao": "Z"}, "Seção CNAE inválida"),
         ("consultar_rfb", {"competencia": "202610"}, "formato inválido"),
         ("consultar_caged", {"sql": "DROP TABLE x"}, "não permitidos"),
@@ -239,7 +239,7 @@ def test_nenhuma_ferramenta_escreve():
 def test_agente_usa_ferramenta_e_responde(db):
     modelo = ModeloFalso(
         [
-            _resposta_chamada("consultar_caged", {"competencia": "202606"}),
+            _resposta_chamada("consultar_caged", {"competencia": "2026-06"}),
             _resposta_texto("Em junho de 2026 o saldo foi de 150 empregos (CAGED)."),
         ],
     )
@@ -256,7 +256,7 @@ def test_agente_usa_ferramenta_e_responde(db):
     # O modelo recebeu de volta os dados reais da ferramenta
     ultima_chamada = modelo.chamadas[-1]
     resposta_ferramenta = ultima_chamada[-1].parts[0].function_response.response
-    assert resposta_ferramenta["totais_por_competencia"]["202606"]["saldo"] == 150
+    assert resposta_ferramenta["totais_por_competencia"]["2026-06"]["saldo"] == 150
     # Respostas de ferramenta voltam com role "user" (o Gemini recusa "tool")
     assert ultima_chamada[-1].role == "user"
 
@@ -267,7 +267,7 @@ def test_agente_manda_periodos_no_contexto(db):
 
     # Os períodos chegam na primeira mensagem, sem gastar uma ida ao modelo
     partes = modelo.chamadas[0][0].parts
-    assert "202606" in partes[0].text
+    assert "2026-06" in partes[0].text
     assert "2026-10" in partes[0].text
     # A pergunta continua separada e por último
     assert partes[-1].text == "Qual o saldo?"

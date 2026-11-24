@@ -26,7 +26,7 @@ MAX_LINHAS = 60
 
 SETOR_TOTAL = "Total"
 
-_RE_COMPETENCIA_CAGED = re.compile(r"^\d{6}$")
+_RE_COMPETENCIA_CAGED = re.compile(r"^\d{4}-\d{2}$")
 _RE_COMPETENCIA_RFB = re.compile(r"^\d{4}-\d{2}$")
 _RE_ANO = re.compile(r"^\d{4}$")
 
@@ -72,7 +72,7 @@ def listar_periodos(db: Session) -> dict[str, Any]:
     ).all()
 
     return {
-        "caged_competencias_YYYYMM": list(caged),
+        "caged_competencias_YYYY-MM": list(caged),
         "cempre_anos": list(cempre),
         "rfb_competencias_YYYY-MM": list(rfb),
         "secoes_cnae": SECOES_CNAE,
@@ -269,7 +269,7 @@ DECLARACOES: list[dict[str, Any]] = [
             "properties": {
                 "competencia": {
                     "type": "string",
-                    "description": "Mês no formato YYYYMM, ex.: 202606.",
+                    "description": "Mês no formato YYYY-MM, ex.: 2026-06.",
                 },
                 "secao": _PROP_SECAO,
             },
