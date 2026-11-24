@@ -6,30 +6,27 @@ import requests
 from src.collectors.base import BaseCollector
 from src.core.settings import settings
 
-BASE_URL = settings.IBGE_BASE_URL
 CODIGO_JOINVILLE = settings.IBGE_MUNICIPIO_JOINVILLE
+
+INDICADORES_SIDRA = (
+    ("populacao_estimada", 6579, 9324),
+    ("pib", 5938, 37),
+    ("participacao_pib_sc", 5938, 497),
+)
 
 logger = logging.getLogger(__name__)
 
 
 class IBGECollector(BaseCollector):
-    """
-    Responsável por coletar dados da API do IBGE.
-    """
-
     def __init__(self) -> None:
         super().__init__(
-            base_url=BASE_URL,
+            base_url=settings.IBGE_SIDRA_URL,
         )
 
     def _buscar_json(
         self,
         url: str,
-    ) -> dict[str, Any]:
-        """
-        Realiza uma requisição GET e retorna o JSON da resposta.
-        """
-
+    ) -> list[dict[str, Any]]:
         logger.info(
             "Realizando requisição para: %s",
             url,
@@ -43,33 +40,32 @@ class IBGECollector(BaseCollector):
 
             response.raise_for_status()
 
-            logger.info("Requisição realizada com sucesso.")
-
             return response.json()
 
         except (
             requests.RequestException,
             ValueError,
         ) as erro:
-            raise RuntimeError(f"Erro ao acessar a API do IBGE: {erro}") from erro
+            raise RuntimeError(f"Erro ao acessar o SIDRA/IBGE: {erro}") from erro
 
-    def coletar(
-        self,
-        endpoint: str = "municipios",
-    ) -> dict[str, Any]:
-        """
-        Coleta dados da API do IBGE.
-        """
+    def coletar(self, **kwargs: Any) -> list[dict[str, Any]]:
+        linhas: list[dict[str, Any]] = []
 
-        url = f"{self.base_url}/localidades/estados/SC/{endpoint}"
+        for indicador, tabela, variavel in INDICADORES_SIDRA:
+            url = (
+                f"{self.base_url}/values/t/{tabela}/n6/{CODIGO_JOINVILLE}"
+                f"/v/{variavel}/p/all"
+            )
 
-        return self._buscar_json(url)
+            resposta = self._buscar_json(url)
 
-    def buscar_joinville(self) -> dict[str, Any]:
-        """
-        Busca as informações de Joinville.
-        """
+            for linha in resposta[1:]:
+                linhas.append({**linha, "indicador": indicador})
 
-        url = f"{self.base_url}/localidades/municipios/{CODIGO_JOINVILLE}"
+            logger.info(
+                "Indicador %s: %d anos coletados.",
+                indicador,
+                len(resposta) - 1,
+            )
 
-        return self._buscar_json(url)
+        return linhas

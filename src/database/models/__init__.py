@@ -9,11 +9,13 @@ no Base.metadata (necessário para o Alembic e para o create_all).
 from src.database.models.api_token import ApiToken
 from src.database.models.caged import CagedMovimentacao
 from src.database.models.cempre import CempreEmprego
+from src.database.models.ibge import IbgeIndicador
 from src.database.models.rfb import RfbEmpresa
 
 __all__ = [
     "ApiToken",
     "CagedMovimentacao",
     "CempreEmprego",
+    "IbgeIndicador",
     "RfbEmpresa",
 ]

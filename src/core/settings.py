@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     IBGE_MUNICIPIO_JOINVILLE: int = 4209102
 
     IBGE_BASE_URL: str = "https://servicodados.ibge.gov.br/api/v1"
+    IBGE_SIDRA_URL: str = "https://apisidra.ibge.gov.br"
     CEMPRE_BASE_URL: str = "https://apisidra.ibge.gov.br"
 
     # Novo CAGED é mensal -> checar uma vez ao dia, às 2h (horário de Brasília)
@@ -49,6 +50,8 @@ class Settings(BaseSettings):
     # CEMPRE é anual -> roda todo dia 1º às 3h
     SCHEDULER_CEMPRE_DIA: int = 1
     SCHEDULER_CEMPRE_HORA: int = 3
+    SCHEDULER_IBGE_DIA: int = 1
+    SCHEDULER_IBGE_HORA: int = 5
 
     # -------------------- RFB (Receita Federal Brasileira) --------------------
     # Servidor de arquivos da RFB, com uma pasta por competência (AAAA-MM)
@@ -80,7 +83,7 @@ class Settings(BaseSettings):
 
     # Origens liberadas no CORS (front Nexus). No .env, usar formato JSON:
     # CORS_ORIGINS=["http://localhost:3000","https://nexus.exemplo.com"]
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     DEBUG: bool = False
     model_config = SettingsConfigDict(
