@@ -22,8 +22,14 @@ limite = LimiteDeUso(
 def _agente_padrao() -> Agente:
     # Import tardio: a API sobe e os testes rodam sem criar cliente real
     from google import genai
+    from google.genai import types
 
-    cliente = genai.Client(api_key=settings.GEMINI_API_KEY)
+    cliente = genai.Client(
+        api_key=settings.GEMINI_API_KEY,
+        http_options=types.HttpOptions(
+            retry_options=types.HttpRetryOptions(attempts=3),
+        ),
+    )
     return Agente(
         cliente=cliente,
         modelo=settings.GEMINI_MODEL,
@@ -80,6 +86,9 @@ def perguntar(
 
     return PerguntaResponse(
         resposta=resultado.resposta,
+        resposta_linhas=[
+            linha.strip() for linha in resultado.resposta.splitlines() if linha.strip()
+        ],
         consultas=[asdict(consulta) for consulta in resultado.consultas],
         modelo=resultado.modelo,
         tokens_entrada=resultado.tokens_entrada,

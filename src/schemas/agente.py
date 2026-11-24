@@ -9,7 +9,11 @@ class PerguntaRequest(BaseModel):
     """
 
     # Teto de tamanho: limita custo e superfície para prompt injection
-    pergunta: str = Field(min_length=3, max_length=300)
+    pergunta: str = Field(
+        min_length=3,
+        max_length=300,
+        examples=["Quantas empresas ativas existem em Joinville?"],
+    )
 
 
 class ConsultaResponse(BaseModel):
@@ -20,6 +24,7 @@ class ConsultaResponse(BaseModel):
 
 class PerguntaResponse(BaseModel):
     resposta: str
+    resposta_linhas: list[str]
     consultas: list[ConsultaResponse]
     modelo: str
     tokens_entrada: int

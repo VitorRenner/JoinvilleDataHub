@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     # Teto de idas e voltas modelo -> ferramenta por pergunta
     AGENTE_MAX_PASSOS: int = 5
     # Raciocínio interno do modelo (Gemini 3.x): minimal, low, medium, high.
-    # Escolher ferramenta e resumir números não pede raciocínio longo; "low"
+    # Escolher ferramenta e resumir números não pede raciocínio longo; "minimal"
     # corta a latência. Vazio = padrão do modelo (modelos 2.5 não aceitam).
-    AGENTE_THINKING_LEVEL: str = "low"
+    AGENTE_THINKING_LEVEL: str = "minimal"
     # Cada pergunta custa uma chamada paga ao LLM: limites contra abuso
     AGENTE_LIMITE_POR_MINUTO: int = 5
     AGENTE_LIMITE_DIARIO: int = 200
